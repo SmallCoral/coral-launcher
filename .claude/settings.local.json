@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cmd.exe *)",
+      "Bash(powershell *)",
+      "Bash(gh auth *)",
+      "Bash(where gh *)",
+      "Bash(git init *)",
+      "Bash(winget install *)",
+      "Bash(C:\\\\Program Files\\\\GitHub CLI\\\\gh.exe auth *)"
+    ]
+  }
+}
