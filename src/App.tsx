@@ -19,6 +19,7 @@ import {
   Settings,
   ShieldCheck,
   TriangleAlert,
+  Trash2,
   UserRound,
   X
 } from "lucide-react";
@@ -26,6 +27,7 @@ import { useEffect, useMemo, useState } from "react";
 
 type Tab = "play" | "versions" | "mods" | "account" | "settings";
 type VersionFilter = "release" | "snapshot" | "all";
+type ModProjectType = "mod" | "shader" | "resourcepack" | "modpack";
 
 interface VersionEntry {
   id: string;
@@ -34,8 +36,10 @@ interface VersionEntry {
   url: string;
   time: string;
   release_time: string;
+  releaseTime?: string;
   sha1: string;
   compliance_level?: number;
+  complianceLevel?: number;
 }
 
 interface VersionManifest {
@@ -120,6 +124,17 @@ interface DataPaths {
   instances_root: string;
 }
 
+interface JavaInstallation {
+  path: string;
+  folder: string;
+  version: string;
+  major: number;
+  is_jdk: boolean;
+  is_64_bit: boolean;
+  source: string;
+  display_name: string;
+}
+
 interface ModrinthHit {
   project_id: string;
   slug: string;
@@ -142,18 +157,35 @@ interface ModInstallResult {
   version_id: string;
   file_name: string;
   path: string;
+  project_type?: string;
+}
+
+interface MemoryRecommendation {
+  total_mb: number;
+  available_mb: number;
+  recommended_mb: number;
+  mod_count: number;
+  modable: boolean;
+  reason: string;
 }
 
 interface SettingsState {
+  javaMode: "auto" | "manual";
   javaPath: string;
+  memoryMode: "auto" | "manual";
   maxMemoryMb: number;
   loader: string;
+  downloadLoader: "none" | "fabric" | "forge";
+  lastVersionId?: string;
 }
 
 const DEFAULT_SETTINGS: SettingsState = {
-  javaPath: "java",
+  javaMode: "auto",
+  javaPath: "",
+  memoryMode: "auto",
   maxMemoryMb: 4096,
-  loader: "fabric"
+  loader: "fabric",
+  downloadLoader: "none"
 };
 
 const VERSION_MANIFEST_URL = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
@@ -182,7 +214,15 @@ function readSettings(): SettingsState {
   try {
     const stored = window.localStorage.getItem("coral-launcher-settings");
     if (!stored) return DEFAULT_SETTINGS;
-    return { ...DEFAULT_SETTINGS, ...JSON.parse(stored) };
+    const parsed = JSON.parse(stored);
+    return {
+      ...DEFAULT_SETTINGS,
+      ...parsed,
+      javaMode: parsed.javaMode === "manual" ? "manual" : "auto",
+      javaPath: typeof parsed.javaPath === "string" ? parsed.javaPath : "",
+      memoryMode: parsed.memoryMode === "manual" ? "manual" : "auto",
+      downloadLoader: ["fabric", "forge", "none"].includes(parsed.downloadLoader) ? parsed.downloadLoader : "none"
+    };
   } catch {
     return DEFAULT_SETTINGS;
   }
@@ -208,6 +248,14 @@ function compactNumber(value: number) {
   return new Intl.NumberFormat("zh-CN", { notation: "compact" }).format(value);
 }
 
+function modProjectLabel(type: ModProjectType) {
+  return type === "shader" ? "光影" : type === "resourcepack" ? "资源包" : type === "modpack" ? "整合包" : "模组";
+}
+
+function modProjectTarget(type: ModProjectType) {
+  return type === "shader" ? "shaderpacks" : type === "resourcepack" ? "resourcepacks" : type === "modpack" ? "当前版本目录" : "mods";
+}
+
 function formatProfileExpiry(profile: MinecraftProfile) {
   if (profile.account_type === "offline") return "离线账号";
   const expiresAt = profile.expires_at ? profile.expires_at * 1000 : Date.now() + profile.expires_in * 1000;
@@ -219,6 +267,10 @@ function formatProfileExpiry(profile: MinecraftProfile) {
 
 function versionType(version?: VersionEntry) {
   return version?.kind ?? version?.type ?? "release";
+}
+
+function versionReleaseTime(version: VersionEntry) {
+  return version.release_time ?? version.releaseTime ?? version.time;
 }
 
 function formatLaunchLogEvent(event: LaunchLogEvent) {
@@ -258,12 +310,15 @@ function App() {
   const [settings, setSettings] = useState<SettingsState>(() => readSettings());
   const [deviceCode, setDeviceCode] = useState<DeviceCodeResponse | null>(null);
   const [profile, setProfile] = useState<MinecraftProfile | null>(null);
+  const [javaInstallations, setJavaInstallations] = useState<JavaInstallation[]>([]);
   const [offlineName, setOfflineName] = useState("Player");
   const [brandLogoIndex, setBrandLogoIndex] = useState(0);
   const [modQuery, setModQuery] = useState("sodium");
+  const [modProjectType, setModProjectType] = useState<ModProjectType>("mod");
   const [modResults, setModResults] = useState<ModrinthHit[]>([]);
   const [modTotal, setModTotal] = useState(0);
   const [lastInstall, setLastInstall] = useState<ModInstallResult | null>(null);
+  const [memoryRecommendation, setMemoryRecommendation] = useState<MemoryRecommendation | null>(null);
   const [launchPreview, setLaunchPreview] = useState("");
   const [launchLogOpen, setLaunchLogOpen] = useState(false);
   const [launchLog, setLaunchLog] = useState("");
@@ -271,6 +326,17 @@ function App() {
   useEffect(() => {
     saveSettings(settings);
   }, [settings]);
+
+  useEffect(() => {
+    if (!selectedVersion) return;
+    setSettings((current) =>
+      current.lastVersionId === selectedVersion ? current : { ...current, lastVersionId: selectedVersion }
+    );
+  }, [selectedVersion]);
+
+  useEffect(() => {
+    refreshMemoryRecommendation(selectedVersion, true);
+  }, [selectedVersion, installed]);
 
   useEffect(() => {
     if (!isTauriRuntime()) return;
@@ -296,6 +362,10 @@ function App() {
   }, []);
 
   useEffect(() => {
+    refreshJavaInstallations(true);
+  }, []);
+
+  useEffect(() => {
     if (!deviceCode || profile) return;
     const interval = window.setInterval(() => {
       pollLogin();
@@ -317,6 +387,25 @@ function App() {
     () => Boolean(selectedInstalledInfo?.has_client && selectedInstalledInfo?.has_manifest),
     [selectedInstalledInfo]
   );
+
+  const selectedJavaInfo = useMemo(
+    () => javaInstallations.find((java) => java.path === settings.javaPath),
+    [javaInstallations, settings.javaPath]
+  );
+
+  const javaModeLabel = useMemo(() => {
+    if (settings.javaMode === "auto") return "自动选择";
+    return selectedJavaInfo?.display_name || settings.javaPath || "未选择";
+  }, [selectedJavaInfo, settings.javaMode, settings.javaPath]);
+
+  const memoryLabel = useMemo(() => {
+    if (settings.memoryMode === "manual") return `${settings.maxMemoryMb} MB`;
+    return memoryRecommendation
+      ? `自动 ${memoryRecommendation.recommended_mb} MB`
+      : selectedInstalled
+        ? "自动计算中"
+        : "自动";
+  }, [memoryRecommendation, selectedInstalled, settings.maxMemoryMb, settings.memoryMode]);
 
   const visibleInstalled = useMemo(() => {
     const query = versionQuery.trim().toLowerCase();
@@ -357,6 +446,12 @@ function App() {
         if (current && (installedData.some((item) => item.id === current) || manifestData.versions.some((item) => item.id === current))) {
           return current;
         }
+        if (
+          settings.lastVersionId &&
+          (installedData.some((item) => item.id === settings.lastVersionId) || manifestData.versions.some((item) => item.id === settings.lastVersionId))
+        ) {
+          return settings.lastVersionId;
+        }
         return installedData[0]?.id ?? manifestData.latest.release;
       });
       setStatus(
@@ -375,7 +470,11 @@ function App() {
     if (!isTauriRuntime()) return;
     const installedData = await invoke<InstalledVersion[]>("list_installed_versions");
     setInstalled(installedData);
-    setSelectedVersion((current) => current || installedData[0]?.id || manifest?.latest.release || "");
+    setSelectedVersion((current) => {
+      if (current && installedData.some((item) => item.id === current)) return current;
+      if (settings.lastVersionId && installedData.some((item) => item.id === settings.lastVersionId)) return settings.lastVersionId;
+      return installedData[0]?.id || manifest?.latest.release || "";
+    });
   }
 
   async function chooseMinecraftRoot() {
@@ -395,6 +494,7 @@ function App() {
       setInstalled(installedData);
       setSelectedVersion((current) => {
         if (current && installedData.some((item) => item.id === current)) return current;
+        if (settings.lastVersionId && installedData.some((item) => item.id === settings.lastVersionId)) return settings.lastVersionId;
         return installedData[0]?.id ?? manifest?.latest.release ?? "";
       });
       setSummary(null);
@@ -402,6 +502,63 @@ function App() {
       setStatus(`已切换 .minecraft：${selectedPaths.minecraft_root}，识别到 ${installedData.length} 个本地版本`);
     } catch (error) {
       setStatus(`选择 .minecraft 失败：${String(error)}`);
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function refreshJavaInstallations(silent = false) {
+    if (!isTauriRuntime()) return;
+    if (!silent) setBusy("java-scan");
+    try {
+      const javaList = await invoke<JavaInstallation[]>("scan_java_installations");
+      setJavaInstallations(javaList);
+      if (!silent) setStatus(`已找到 ${javaList.length} 个可用 Java`);
+    } catch (error) {
+      if (!silent) setStatus(`搜索 Java 失败：${String(error)}`);
+    } finally {
+      if (!silent) setBusy("");
+    }
+  }
+
+  async function refreshMemoryRecommendation(versionId = selectedVersion, silent = false) {
+    if (!isTauriRuntime() || !versionId || !installed.some((item) => item.id === versionId)) {
+      setMemoryRecommendation(null);
+      return;
+    }
+    if (!silent) setBusy("memory");
+    try {
+      const recommendation = await invoke<MemoryRecommendation>("recommend_memory", { versionId });
+      setMemoryRecommendation(recommendation);
+      if (!silent) setStatus(`自动内存建议：${recommendation.recommended_mb} MB`);
+    } catch (error) {
+      setMemoryRecommendation(null);
+      if (!silent) setStatus(`计算自动内存失败：${String(error)}`);
+    } finally {
+      if (!silent) setBusy("");
+    }
+  }
+
+  async function chooseJavaExecutable() {
+    if (!isTauriRuntime()) {
+      setStatus("导入 Java 需要在 Tauri 桌面窗口中运行");
+      return;
+    }
+    setBusy("java-choose");
+    try {
+      const selectedJava = await invoke<JavaInstallation | null>("choose_java_executable");
+      if (!selectedJava) {
+        setStatus("已取消导入 Java");
+        return;
+      }
+      setJavaInstallations((current) => {
+        if (current.some((java) => java.path === selectedJava.path)) return current;
+        return [...current, selectedJava].sort((left, right) => left.major - right.major || left.path.localeCompare(right.path));
+      });
+      setSettings((current) => ({ ...current, javaMode: "manual", javaPath: selectedJava.path }));
+      setStatus(`已选择 ${selectedJava.display_name}`);
+    } catch (error) {
+      setStatus(`导入 Java 失败：${String(error)}`);
     } finally {
       setBusy("");
     }
@@ -517,11 +674,44 @@ function App() {
     setBusy("download");
     setProgress({ phase: "queued", current: 0, total: 1, label: "准备下载" });
     try {
-      await invoke("download_version", { versionId: selectedVersion, includeAssets: true });
+      await invoke("download_version", {
+        versionId: selectedVersion,
+        includeAssets: true,
+        loader: settings.downloadLoader
+      });
       await refreshInstalled();
-      setStatus(`${selectedVersion} 已下载完成`);
+      setStatus(
+        settings.downloadLoader === "none"
+          ? `${selectedVersion} 已下载完成`
+          : `${selectedVersion} 已下载完成，并附加安装 ${settings.downloadLoader}`
+      );
     } catch (error) {
       setStatus(`下载失败：${String(error)}`);
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function deleteSelectedVersion() {
+    if (!selectedInstalledInfo) {
+      setStatus("请选择一个已安装的本地版本");
+      return;
+    }
+    if (!isTauriRuntime()) {
+      setStatus("删除版本需要在 Tauri 桌面窗口中运行");
+      return;
+    }
+    const confirmed = window.confirm(`确认删除版本 ${selectedInstalledInfo.id}？这会移除对应 versions 文件夹。`);
+    if (!confirmed) return;
+    setBusy("delete-version");
+    try {
+      await invoke("delete_installed_version", { versionId: selectedInstalledInfo.id });
+      setSummary(null);
+      setLaunchPreview("");
+      await refreshInstalled();
+      setStatus(`已删除版本 ${selectedInstalledInfo.id}`);
+    } catch (error) {
+      setStatus(`删除版本失败：${String(error)}`);
     } finally {
       setBusy("");
     }
@@ -592,8 +782,9 @@ function App() {
     try {
       const result = await invoke<{ command_preview: string }>("preview_launch_command", {
         versionId: selectedVersion,
-        javaPath: settings.javaPath,
+        javaPath: settings.javaMode === "manual" ? settings.javaPath : "auto",
         maxMemoryMb: settings.maxMemoryMb,
+        memoryMode: settings.memoryMode,
         account: launchAccount()
       });
       setLaunchPreview(result.command_preview);
@@ -630,16 +821,21 @@ function App() {
         `时间: ${new Date().toLocaleString("zh-CN")}`,
         `版本: ${selectedVersion}`,
         `.minecraft: ${paths?.minecraft_root ?? "未知"}`,
-        `Java: ${settings.javaPath || "java"}`,
-        `内存: ${settings.maxMemoryMb} MB`,
+        `Java: ${settings.javaMode === "manual" ? settings.javaPath || "未选择" : "自动选择"}`,
+        `内存: ${
+          settings.memoryMode === "auto"
+            ? `自动${memoryRecommendation ? ` (${memoryRecommendation.recommended_mb} MB)` : ""}`
+            : `${settings.maxMemoryMb} MB`
+        }`,
         ""
       ].join("\n")
     );
     try {
       const result = await invoke<{ pid?: number; game_directory: string }>("launch_game", {
         versionId: selectedVersion,
-        javaPath: settings.javaPath,
+        javaPath: settings.javaMode === "manual" ? settings.javaPath : "auto",
         maxMemoryMb: settings.maxMemoryMb,
+        memoryMode: settings.memoryMode,
         account: launchAccount()
       });
       setStatus(`游戏进程已启动：PID ${result.pid ?? "未知"}，目录 ${result.game_directory}`);
@@ -673,16 +869,16 @@ function App() {
             query: modQuery,
             gameVersion: selectedVersion,
             loader: settings.loader,
-            projectType: "mod",
+            projectType: modProjectType,
             limit: 24
           })
         : await fetch(
             `${MODRINTH_API}/search?${new URLSearchParams({
               query: modQuery,
               facets: JSON.stringify([
-                ["project_type:mod"],
-                ...(selectedVersion ? [[`versions:${selectedVersion}`]] : []),
-                ...(settings.loader ? [[`categories:${settings.loader}`]] : [])
+                [`project_type:${modProjectType}`],
+                ...(selectedVersion ? [[`versions:${selectedInstalledInfo?.inherits_from || selectedVersion}`]] : []),
+                ...(settings.loader && (modProjectType === "mod" || modProjectType === "modpack") ? [[`categories:${settings.loader}`]] : [])
               ]),
               limit: "24",
               index: "relevance"
@@ -690,7 +886,7 @@ function App() {
           ).then((response) => response.json() as Promise<ModrinthSearchResponse>);
       setModResults(response.hits ?? []);
       setModTotal(response.total_hits ?? 0);
-      setStatus(`Modrinth 返回 ${response.total_hits ?? 0} 个结果`);
+      setStatus(`Modrinth 返回 ${response.total_hits ?? 0} 个${modProjectLabel(modProjectType)}结果`);
     } catch (error) {
       setStatus(`模组搜索失败：${String(error)}`);
     } finally {
@@ -708,10 +904,11 @@ function App() {
       const result = await invoke<ModInstallResult>("install_modrinth_project", {
         projectId,
         gameVersion: selectedVersion,
-        loader: settings.loader
+        loader: settings.loader,
+        projectType: modProjectType
       });
       setLastInstall(result);
-      setStatus(`已安装 ${result.file_name}`);
+      setStatus(`已安装 ${modProjectLabel(modProjectType)}：${result.file_name}`);
     } catch (error) {
       setStatus(`模组安装失败：${String(error)}`);
     } finally {
@@ -852,11 +1049,11 @@ function App() {
               <div className="launch-facts">
                 <div>
                   <span>Java</span>
-                  <strong>{settings.javaPath || "java"}</strong>
+                  <strong>{javaModeLabel}</strong>
                 </div>
                 <div>
                   <span>内存</span>
-                  <strong>{settings.maxMemoryMb} MB</strong>
+                  <strong>{memoryLabel}</strong>
                 </div>
                 <div>
                   <span>账号</span>
@@ -883,6 +1080,19 @@ function App() {
                 </div>
                 <Download size={20} />
               </div>
+              <label className="input-label compact-label">
+                附加加载器
+                <select
+                  value={settings.downloadLoader}
+                  onChange={(event) =>
+                    setSettings({ ...settings, downloadLoader: event.target.value as SettingsState["downloadLoader"] })
+                  }
+                >
+                  <option value="none">仅下载原版</option>
+                  <option value="fabric">原版 + Fabric</option>
+                  <option value="forge">原版 + Forge</option>
+                </select>
+              </label>
               <div className="progress-block">
                 <div className="progress-meter">
                   <span style={{ width: `${progressPercent}%` }} />
@@ -975,7 +1185,7 @@ function App() {
                   >
                     <div>
                       <strong>{version.id}</strong>
-                      <span>{new Date(version.release_time).toLocaleDateString("zh-CN")}</span>
+                      <span>{new Date(versionReleaseTime(version)).toLocaleDateString("zh-CN")}</span>
                     </div>
                     <span className={installedVersion?.has_client ? "badge ok" : "badge"}>{versionType(version)}</span>
                   </button>
@@ -1020,6 +1230,12 @@ function App() {
                   <Download size={18} />
                   <span>下载 {selectedVersion}</span>
                 </button>
+                {selectedInstalledInfo && (
+                  <button className="secondary-action danger" onClick={deleteSelectedVersion} disabled={busy === "delete-version"}>
+                    {busy === "delete-version" ? <Loader2 className="spin" size={18} /> : <Trash2 size={18} />}
+                    <span>删除版本</span>
+                  </button>
+                )}
               </div>
             </div>
           </section>
@@ -1028,11 +1244,30 @@ function App() {
         {activeTab === "mods" && (
           <section className="mods-layout">
             <div className="toolbar">
+              <div className="segmented">
+                {(["mod", "shader", "resourcepack", "modpack"] as ModProjectType[]).map((type) => (
+                  <button
+                    key={type}
+                    className={modProjectType === type ? "active" : ""}
+                    onClick={() => setModProjectType(type)}
+                  >
+                    {modProjectLabel(type)}
+                  </button>
+                ))}
+              </div>
               <div className="search-box">
                 <Search size={18} />
-                <input value={modQuery} onChange={(event) => setModQuery(event.target.value)} placeholder="搜索 Modrinth 模组" />
+                <input
+                  value={modQuery}
+                  onChange={(event) => setModQuery(event.target.value)}
+                  placeholder={`搜索 Modrinth ${modProjectLabel(modProjectType)}`}
+                />
               </div>
-              <select value={settings.loader} onChange={(event) => setSettings({ ...settings, loader: event.target.value })}>
+              <select
+                value={settings.loader}
+                disabled={modProjectType === "shader" || modProjectType === "resourcepack"}
+                onChange={(event) => setSettings({ ...settings, loader: event.target.value })}
+              >
                 <option value="fabric">Fabric</option>
                 <option value="forge">Forge</option>
                 <option value="quilt">Quilt</option>
@@ -1045,8 +1280,12 @@ function App() {
             </div>
 
             <div className="mods-summary">
-              <strong>{modTotal ? `${modTotal} 个匹配结果` : "Modrinth 社区"}</strong>
-              <span>目标版本 {selectedVersion || latestRelease}，加载器 {settings.loader}</span>
+              <strong>{modTotal ? `${modTotal} 个${modProjectLabel(modProjectType)}结果` : "Modrinth 社区"}</strong>
+              <span>
+                目标版本 {selectedVersion || latestRelease}，
+                {modProjectType === "mod" || modProjectType === "modpack" ? `加载器 ${settings.loader}，` : ""}
+                安装到 {modProjectTarget(modProjectType)}
+              </span>
               {lastInstall && <span>最近安装：{lastInstall.file_name}</span>}
             </div>
 
@@ -1196,16 +1435,98 @@ function App() {
                   <h2>运行参数</h2>
                 </div>
               </div>
-              <label className="input-label">
-                Java 路径
+              <div className="input-label">
+                Java
+                <div className="java-mode-row">
+                  <div className="segmented">
+                    <button
+                      className={settings.javaMode === "auto" ? "active" : ""}
+                      onClick={() => setSettings({ ...settings, javaMode: "auto" })}
+                    >
+                      自动
+                    </button>
+                    <button
+                      className={settings.javaMode === "manual" ? "active" : ""}
+                      onClick={() => setSettings({ ...settings, javaMode: "manual" })}
+                    >
+                      手动
+                    </button>
+                  </div>
+                  <button className="icon-button" onClick={() => refreshJavaInstallations()} title="搜索 Java" disabled={busy === "java-scan"}>
+                    {busy === "java-scan" ? <Loader2 className="spin" size={18} /> : <RefreshCw size={18} />}
+                  </button>
+                  <button className="icon-button" onClick={chooseJavaExecutable} title="导入 Java" disabled={busy === "java-choose"}>
+                    {busy === "java-choose" ? <Loader2 className="spin" size={18} /> : <FolderOpen size={18} />}
+                  </button>
+                </div>
+                <select
+                  value={settings.javaPath}
+                  disabled={settings.javaMode !== "manual"}
+                  onChange={(event) => setSettings({ ...settings, javaMode: "manual", javaPath: event.target.value })}
+                >
+                  <option value="">选择 Java</option>
+                  {javaInstallations.map((java) => (
+                    <option key={java.path} value={java.path}>
+                      {java.display_name} · Java {java.major} · {java.source}
+                    </option>
+                  ))}
+                </select>
                 <input
                   value={settings.javaPath}
-                  onChange={(event) => setSettings({ ...settings, javaPath: event.target.value })}
-                  placeholder="java 或 javaw.exe 的完整路径"
+                  disabled={settings.javaMode !== "manual"}
+                  onChange={(event) => setSettings({ ...settings, javaMode: "manual", javaPath: event.target.value })}
+                  placeholder="java.exe 完整路径"
                 />
-              </label>
-              <label className="input-label">
-                最大内存
+                <div className="java-list">
+                  {javaInstallations.slice(0, 6).map((java) => (
+                    <button
+                      key={`java-${java.path}`}
+                      className={settings.javaMode === "manual" && settings.javaPath === java.path ? "java-row active" : "java-row"}
+                      onClick={() => setSettings({ ...settings, javaMode: "manual", javaPath: java.path })}
+                    >
+                      <strong>{java.display_name}</strong>
+                      <span>{java.path}</span>
+                    </button>
+                  ))}
+                  {javaInstallations.length === 0 && <span className="muted">尚未搜索到 Java</span>}
+                </div>
+              </div>
+              <div className="input-label">
+                内存
+                <div className="java-mode-row two-actions">
+                  <div className="segmented">
+                    <button
+                      className={settings.memoryMode === "auto" ? "active" : ""}
+                      onClick={() => setSettings({ ...settings, memoryMode: "auto" })}
+                    >
+                      自动
+                    </button>
+                    <button
+                      className={settings.memoryMode === "manual" ? "active" : ""}
+                      onClick={() => setSettings({ ...settings, memoryMode: "manual" })}
+                    >
+                      手动
+                    </button>
+                  </div>
+                  <button
+                    className="icon-button"
+                    onClick={() => refreshMemoryRecommendation(selectedVersion)}
+                    title="重新计算内存"
+                    disabled={busy === "memory" || !selectedInstalled}
+                  >
+                    {busy === "memory" ? <Loader2 className="spin" size={18} /> : <RefreshCw size={18} />}
+                  </button>
+                </div>
+                {settings.memoryMode === "auto" && (
+                  <div className="memory-hint">
+                    <strong>{memoryRecommendation ? `${memoryRecommendation.recommended_mb} MB` : "等待选择已安装版本"}</strong>
+                    <span>
+                      {memoryRecommendation
+                        ? `${memoryRecommendation.reason} · 可用 ${memoryRecommendation.available_mb || "未知"} MB / 总计 ${memoryRecommendation.total_mb || "未知"} MB`
+                        : "会按当前版本类型、隔离目录中的 Mod 数量和系统可用内存自动分配"}
+                    </span>
+                  </div>
+                )}
                 <div className="range-row">
                   <input
                     type="range"
@@ -1213,6 +1534,7 @@ function App() {
                     max="16384"
                     step="512"
                     value={settings.maxMemoryMb}
+                    disabled={settings.memoryMode !== "manual"}
                     onChange={(event) => setSettings({ ...settings, maxMemoryMb: Number(event.target.value) })}
                   />
                   <input
@@ -1221,10 +1543,11 @@ function App() {
                     max="32768"
                     step="512"
                     value={settings.maxMemoryMb}
+                    disabled={settings.memoryMode !== "manual"}
                     onChange={(event) => setSettings({ ...settings, maxMemoryMb: Number(event.target.value) })}
                   />
                 </div>
-              </label>
+              </div>
             </div>
 
             <div className="panel paths-panel">

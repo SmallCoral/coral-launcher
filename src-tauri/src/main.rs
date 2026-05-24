@@ -25,6 +25,9 @@ const VERSION_MANIFEST_URL: &str =
 const BMCLAPI_VERSION_MANIFEST_URL: &str =
     "https://bmclapi2.bangbang93.com/mc/game/version_manifest_v2.json";
 const MODRINTH_API: &str = "https://api.modrinth.com/v2";
+const FABRIC_META_API: &str = "https://meta.fabricmc.net/v2";
+const FORGE_PROMOTIONS_URL: &str =
+    "https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json";
 const DEFAULT_MICROSOFT_CLIENT_ID: &str = "c36a9fb6-4f2a-41ff-90bd-ae7cc92031eb";
 const JAVA_RUNTIME_MANIFEST_URL: &str =
     "https://piston-meta.mojang.com/v1/products/java-runtime/2ec0cc96c44e5a76b9c8b7c39df7210883d12871/all.json";
@@ -88,6 +91,18 @@ struct VersionSummary {
     client_size: Option<i64>,
     game_arguments: usize,
     jvm_arguments: usize,
+}
+
+#[derive(Debug, Serialize, Clone)]
+struct JavaInstallation {
+    path: String,
+    folder: String,
+    version: String,
+    major: i64,
+    is_jdk: bool,
+    is_64_bit: bool,
+    source: String,
+    display_name: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -167,12 +182,23 @@ struct LaunchLogEvent {
     pid: Option<u32>,
 }
 
+#[derive(Debug, Serialize, Clone)]
+struct MemoryRecommendation {
+    total_mb: i64,
+    available_mb: i64,
+    recommended_mb: i64,
+    mod_count: usize,
+    modable: bool,
+    reason: String,
+}
+
 #[derive(Debug, Serialize)]
 struct ModInstallResult {
     project_id: String,
     version_id: String,
     file_name: String,
     path: String,
+    project_type: String,
 }
 
 fn http_client() -> Result<Client, String> {
@@ -429,7 +455,12 @@ where
             match line {
                 Ok(line) => emit_launch_log(&app, stream, line, Some(pid)),
                 Err(error) => {
-                    emit_launch_log(&app, stream, format!("读取 {stream} 失败: {error}"), Some(pid));
+                    emit_launch_log(
+                        &app,
+                        stream,
+                        format!("读取 {stream} 失败: {error}"),
+                        Some(pid),
+                    );
                     break;
                 }
             }
@@ -439,7 +470,10 @@ where
 
 fn sanitize_command_preview(executable: &str, args: &[String], account: &LaunchAccount) -> String {
     let mut preview = format!("{} {}", executable, args.join(" "));
-    for secret in [account.access_token.as_str(), account.xuid.as_deref().unwrap_or("")] {
+    for secret in [
+        account.access_token.as_str(),
+        account.xuid.as_deref().unwrap_or(""),
+    ] {
         if !secret.is_empty() {
             preview = preview.replace(secret, "<hidden>");
         }
@@ -495,10 +529,11 @@ fn runtime_java_path(component: &str) -> Result<PathBuf, String> {
 }
 
 fn parse_java_major(version_output: &str) -> Option<i64> {
-    let version = version_output
-        .split('"')
-        .nth(1)
-        .or_else(|| version_output.split_whitespace().find(|part| part.chars().next()?.is_ascii_digit()))?;
+    let version = version_output.split('"').nth(1).or_else(|| {
+        version_output
+            .split_whitespace()
+            .find(|part| part.chars().next().is_some_and(|ch| ch.is_ascii_digit()))
+    })?;
     let mut numbers = version
         .split(|ch: char| !ch.is_ascii_digit())
         .filter(|part| !part.is_empty())
@@ -514,6 +549,27 @@ fn parse_java_major(version_output: &str) -> Option<i64> {
     }
 }
 
+fn parse_java_version_string(version_output: &str) -> Option<String> {
+    version_output
+        .split('"')
+        .nth(1)
+        .map(|value| value.trim().replace('_', "."))
+        .filter(|value| !value.is_empty())
+        .or_else(|| {
+            version_output
+                .split_whitespace()
+                .find(|part| part.chars().next().is_some_and(|ch| ch.is_ascii_digit()))
+                .map(|value| {
+                    value
+                        .trim_matches(|ch: char| {
+                            !(ch.is_ascii_alphanumeric() || ch == '.' || ch == '_' || ch == '-')
+                        })
+                        .replace('_', ".")
+                })
+                .filter(|value| !value.is_empty())
+        })
+}
+
 fn java_major_version(executable: &str) -> Result<Option<i64>, String> {
     let mut command = Command::new(executable);
     command.arg("-version");
@@ -522,15 +578,335 @@ fn java_major_version(executable: &str) -> Result<Option<i64>, String> {
         use std::os::windows::process::CommandExt;
         command.creation_flags(0x08000000);
     }
-    let output = command.output().map_err(|error| {
-        format!("无法运行 Java 版本检查 `{executable} -version`: {error}")
-    })?;
+    let output = command
+        .output()
+        .map_err(|error| format!("无法运行 Java 版本检查 `{executable} -version`: {error}"))?;
     let text = format!(
         "{}\n{}",
         String::from_utf8_lossy(&output.stdout),
         String::from_utf8_lossy(&output.stderr)
     );
     Ok(parse_java_major(&text))
+}
+
+fn java_version_output(executable: &Path) -> Result<String, String> {
+    let mut command = Command::new(executable);
+    command.arg("-version");
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        command.creation_flags(0x08000000);
+    }
+    let output = command.output().map_err(|error| {
+        format!(
+            "无法运行 Java 版本检查 `{}` -version: {error}",
+            executable.display()
+        )
+    })?;
+    Ok(format!(
+        "{}\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    ))
+}
+
+fn java_executable_from_path(path: &Path) -> Option<PathBuf> {
+    let java_name = java_executable_name();
+    if path.is_file() {
+        let file_name = path.file_name()?.to_string_lossy().to_ascii_lowercase();
+        if file_name == java_name || file_name == "javaw.exe" || file_name == "java" {
+            if file_name == "javaw.exe" {
+                let java = path.with_file_name("java.exe");
+                if java.exists() {
+                    return Some(java);
+                }
+            }
+            return Some(path.to_path_buf());
+        }
+    }
+    if path.is_dir() {
+        for candidate in [path.join(java_name), path.join("bin").join(java_name)] {
+            if candidate.exists() {
+                return Some(candidate);
+            }
+        }
+        #[cfg(target_os = "windows")]
+        {
+            for candidate in [path.join("javaw.exe"), path.join("bin").join("javaw.exe")] {
+                if candidate.exists() {
+                    let java = candidate.with_file_name("java.exe");
+                    if java.exists() {
+                        return Some(java);
+                    }
+                }
+            }
+        }
+    }
+    None
+}
+
+fn normalized_path_key(path: &Path) -> String {
+    path.canonicalize()
+        .unwrap_or_else(|_| path.to_path_buf())
+        .display()
+        .to_string()
+        .replace('/', "\\")
+        .to_ascii_lowercase()
+}
+
+fn add_java_candidate(
+    candidates: &mut HashMap<String, (PathBuf, String)>,
+    path: PathBuf,
+    source: &str,
+) {
+    if let Some(executable) = java_executable_from_path(&path) {
+        let key = normalized_path_key(&executable);
+        candidates
+            .entry(key)
+            .or_insert_with(|| (executable, source.to_string()));
+    }
+}
+
+fn java_search_relevant(name: &str) -> bool {
+    let lower = name.to_ascii_lowercase();
+    [
+        "java",
+        "jdk",
+        "jre",
+        "jvm",
+        "runtime",
+        "adoptium",
+        "temurin",
+        "corretto",
+        "zulu",
+        "bellsoft",
+        "liberica",
+        "microsoft",
+        "oracle",
+        "jetbrains",
+        "jbr",
+        "graal",
+        "dragonwell",
+        "semeru",
+        "mc",
+        "minecraft",
+        "pcl",
+        "hmcl",
+        "launcher",
+        "program",
+        "software",
+        "soft",
+        "env",
+        "cache",
+        "游戏",
+        "软件",
+        "环境",
+    ]
+    .iter()
+    .any(|keyword| lower.contains(keyword))
+        || lower
+            .chars()
+            .next()
+            .map(|ch| ch.is_ascii_digit())
+            .unwrap_or(false)
+}
+
+fn search_java_folder(
+    root: &Path,
+    candidates: &mut HashMap<String, (PathBuf, String)>,
+    depth: usize,
+    full_search: bool,
+    source: &str,
+) {
+    add_java_candidate(candidates, root.to_path_buf(), source);
+    if depth == 0 || !root.is_dir() {
+        return;
+    }
+    let Ok(entries) = fs::read_dir(root) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let Ok(file_type) = entry.file_type() else {
+            continue;
+        };
+        if !file_type.is_dir() || file_type.is_symlink() {
+            continue;
+        }
+        let name = entry.file_name().to_string_lossy().to_string();
+        if full_search || java_search_relevant(&name) {
+            search_java_folder(
+                &entry.path(),
+                candidates,
+                depth.saturating_sub(1),
+                false,
+                source,
+            );
+        }
+    }
+}
+
+fn add_environment_java_candidates(candidates: &mut HashMap<String, (PathBuf, String)>) {
+    if let Some(paths) = std::env::var_os("PATH") {
+        for path in std::env::split_paths(&paths) {
+            add_java_candidate(candidates, path, "PATH");
+        }
+    }
+    for name in ["JAVA_HOME", "JDK_HOME", "JRE_HOME"] {
+        if let Some(path) = std::env::var_os(name) {
+            add_java_candidate(candidates, PathBuf::from(path), name);
+        }
+    }
+}
+
+fn common_java_roots() -> Vec<(PathBuf, usize, bool, &'static str)> {
+    let mut roots = Vec::new();
+    for env_name in ["ProgramFiles", "ProgramFiles(x86)", "LOCALAPPDATA"] {
+        if let Some(value) = std::env::var_os(env_name) {
+            let root = PathBuf::from(value);
+            roots.push((root.clone(), 3, false, env_name));
+            for child in [
+                "Java",
+                "Eclipse Adoptium",
+                "Microsoft",
+                "Amazon Corretto",
+                "BellSoft",
+                "Zulu",
+                "JetBrains",
+                "Semeru",
+                "RedHat",
+                "Programs",
+            ] {
+                roots.push((root.join(child), 4, true, env_name));
+            }
+        }
+    }
+    if let Some(home) = dirs::home_dir() {
+        roots.push((home.join(".jdks"), 4, true, "用户 .jdks"));
+        roots.push((
+            home.join(".sdkman").join("candidates").join("java"),
+            4,
+            true,
+            "SDKMAN",
+        ));
+    }
+    if let Ok(root) = launcher_root() {
+        roots.push((root.join("runtime"), 6, true, "启动器 Runtime"));
+    }
+    if let Ok(root) = minecraft_root() {
+        roots.push((root.join("runtime"), 6, true, ".minecraft Runtime"));
+        if let Some(parent) = root.parent() {
+            roots.push((parent.to_path_buf(), 3, false, ".minecraft 附近"));
+        }
+    }
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(parent) = exe.parent() {
+            roots.push((parent.to_path_buf(), 4, true, "启动器目录"));
+        }
+    }
+    #[cfg(target_os = "windows")]
+    {
+        for drive in 'C'..='Z' {
+            let root = PathBuf::from(format!("{drive}:\\"));
+            if root.exists() {
+                roots.push((root, 4, false, "磁盘搜索"));
+            }
+        }
+    }
+    roots
+}
+
+fn inspect_java_installation(path: &Path, source: &str) -> Option<JavaInstallation> {
+    let executable = java_executable_from_path(path)?;
+    let output = java_version_output(&executable).ok()?;
+    let major = parse_java_major(&output)?;
+    let version = parse_java_version_string(&output).unwrap_or_else(|| major.to_string());
+    let folder = executable.parent()?.to_path_buf();
+    let is_jdk = folder
+        .join(if cfg!(target_os = "windows") {
+            "javac.exe"
+        } else {
+            "javac"
+        })
+        .exists();
+    let output_lower = output.to_ascii_lowercase();
+    let path_lower = executable.display().to_string().to_ascii_lowercase();
+    let is_64_bit = output_lower.contains("64-bit")
+        || output_lower.contains("64 bit")
+        || (!path_lower.contains("program files (x86)") && cfg!(target_pointer_width = "64"));
+    let kind = if is_jdk { "JDK" } else { "JRE" };
+    let bit = if is_64_bit { "64 位" } else { "32 位" };
+    Some(JavaInstallation {
+        path: executable.display().to_string(),
+        folder: folder.display().to_string(),
+        version: version.clone(),
+        major,
+        is_jdk,
+        is_64_bit,
+        source: source.to_string(),
+        display_name: format!("{kind} {major} ({version}) · {bit}"),
+    })
+}
+
+fn scan_java_installations_sync() -> Result<Vec<JavaInstallation>, String> {
+    let mut candidates = HashMap::<String, (PathBuf, String)>::new();
+    add_environment_java_candidates(&mut candidates);
+    for (root, depth, full_search, source) in common_java_roots() {
+        search_java_folder(&root, &mut candidates, depth, full_search, source);
+    }
+    let mut installations = candidates
+        .into_values()
+        .filter_map(|(path, source)| inspect_java_installation(&path, &source))
+        .collect::<Vec<_>>();
+    installations.sort_by_key(|java| {
+        (
+            java.major,
+            if java.is_64_bit { 0 } else { 1 },
+            if java.is_jdk { 1 } else { 0 },
+            java.path.clone(),
+        )
+    });
+    installations.dedup_by(|left, right| {
+        normalized_path_key(Path::new(&left.path)) == normalized_path_key(Path::new(&right.path))
+    });
+    Ok(installations)
+}
+
+fn java_score(java: &JavaInstallation, required_major: i64) -> (i64, i32, i32, i32, String) {
+    let distance = if java.major >= required_major {
+        java.major - required_major
+    } else {
+        10_000 + (required_major - java.major)
+    };
+    let bit_penalty = if java.is_64_bit { 0 } else { 1 };
+    let jdk_penalty = if java.is_jdk { 1 } else { 0 };
+    let source_penalty = if java.source.contains("启动器") || java.source.contains(".minecraft")
+    {
+        0
+    } else if java.source == "JAVA_HOME" || java.source == "JDK_HOME" || java.source == "JRE_HOME" {
+        1
+    } else if java.source == "PATH" {
+        2
+    } else {
+        3
+    };
+    (
+        distance,
+        bit_penalty,
+        jdk_penalty,
+        source_penalty,
+        java.path.clone(),
+    )
+}
+
+fn select_best_java(
+    installations: &[JavaInstallation],
+    required_major: i64,
+) -> Option<JavaInstallation> {
+    installations
+        .iter()
+        .filter(|java| java.major >= required_major)
+        .min_by_key(|java| java_score(java, required_major))
+        .cloned()
 }
 
 fn java_component_for_version(version_json: &Value) -> Option<String> {
@@ -542,6 +918,7 @@ fn java_component_for_version(version_json: &Value) -> Option<String> {
             match version_json
                 .pointer("/javaVersion/majorVersion")
                 .and_then(Value::as_i64)
+                .or(Some(8))
             {
                 Some(major) if major >= 25 => Some("java-runtime-epsilon".to_string()),
                 Some(major) if major >= 21 => Some("java-runtime-delta".to_string()),
@@ -557,6 +934,10 @@ fn required_java_major(version_json: &Value) -> Option<i64> {
     version_json
         .pointer("/javaVersion/majorVersion")
         .and_then(Value::as_i64)
+}
+
+fn required_java_major_or_default(version_json: &Value) -> i64 {
+    required_java_major(version_json).unwrap_or(8)
 }
 
 fn manifest_urls() -> Vec<String> {
@@ -583,6 +964,14 @@ fn mirror_urls(url: &str) -> Vec<String> {
         ),
         (
             "https://libraries.minecraft.net/",
+            "https://bmclapi2.bangbang93.com/maven/",
+        ),
+        (
+            "https://maven.fabricmc.net/",
+            "https://bmclapi2.bangbang93.com/maven/",
+        ),
+        (
+            "https://maven.minecraftforge.net/",
             "https://bmclapi2.bangbang93.com/maven/",
         ),
         (
@@ -767,7 +1156,8 @@ async fn download_java_runtime(
         format!("正在获取 Mojang Java Runtime: {component} / {platform}"),
         None,
     );
-    let all = fetch_json_from_urls::<Value>(client, vec![JAVA_RUNTIME_MANIFEST_URL.to_string()]).await?;
+    let all =
+        fetch_json_from_urls::<Value>(client, vec![JAVA_RUNTIME_MANIFEST_URL.to_string()]).await?;
     let runtimes = all
         .get(platform)
         .and_then(|value| value.get(component))
@@ -820,7 +1210,10 @@ async fn download_java_runtime(
                 downloads.push(DownloadFile {
                     urls: mirror_urls(url),
                     path,
-                    sha1: raw.get("sha1").and_then(Value::as_str).map(ToOwned::to_owned),
+                    sha1: raw
+                        .get("sha1")
+                        .and_then(Value::as_str)
+                        .map(ToOwned::to_owned),
                     size: raw.get("size").and_then(Value::as_i64),
                     label: relative.clone(),
                     is_json: false,
@@ -870,7 +1263,10 @@ async fn download_java_runtime(
         .buffer_unordered(16)
         .collect::<Vec<_>>()
         .await;
-    let failed = results.into_iter().filter_map(Result::err).collect::<Vec<_>>();
+    let failed = results
+        .into_iter()
+        .filter_map(Result::err)
+        .collect::<Vec<_>>();
     if !failed.is_empty() {
         return Err(format!(
             "{} 个 Java Runtime 文件下载失败：{}",
@@ -881,7 +1277,10 @@ async fn download_java_runtime(
 
     let java = runtime_java_path(component)?;
     if !java.exists() {
-        return Err(format!("Java Runtime 下载完成但未找到 Java: {}", java.display()));
+        return Err(format!(
+            "Java Runtime 下载完成但未找到 Java: {}",
+            java.display()
+        ));
     }
     emit_launch_log(
         app,
@@ -898,28 +1297,74 @@ async fn prepare_java_executable(
     requested_java: &str,
 ) -> Result<String, String> {
     let requested = requested_java.trim();
-    let requested = if requested.is_empty() { "java" } else { requested };
-    let required_major = required_java_major(version_json);
+    let auto_mode = requested.is_empty() || requested.eq_ignore_ascii_case("auto");
+    let requested = if auto_mode { "auto" } else { requested };
+    let required_major = required_java_major_or_default(version_json);
     let component = java_component_for_version(version_json);
 
-    match java_major_version(requested) {
-        Ok(Some(major)) => {
-            emit_launch_log(app, "info", format!("检测到 Java `{requested}` 版本: {major}"), None);
-            if required_major.map(|required| major >= required).unwrap_or(true) {
-                return Ok(requested.to_string());
+    if !auto_mode {
+        match java_major_version(requested) {
+            Ok(Some(major)) => {
+                emit_launch_log(
+                    app,
+                    "info",
+                    format!("检测到手动指定 Java `{requested}` 版本: {major}"),
+                    None,
+                );
+                if major >= required_major {
+                    return Ok(requested.to_string());
+                }
+                emit_launch_log(
+                    app,
+                    "info",
+                    format!(
+                        "手动指定的 Java 版本 {major} 不满足当前版本要求 Java {required_major}+，改用自动选择"
+                    ),
+                    None,
+                );
+            }
+            Ok(None) => emit_launch_log(
+                app,
+                "info",
+                format!("无法识别手动指定 Java `{requested}` 的版本，改用自动选择"),
+                None,
+            ),
+            Err(error) => emit_launch_log(app, "info", format!("{error}，改用自动选择"), None),
+        }
+    } else {
+        emit_launch_log(
+            app,
+            "info",
+            format!("Java 模式: 自动选择，当前版本要求 Java {required_major}+"),
+            None,
+        );
+    }
+
+    match scan_java_installations_sync() {
+        Ok(installations) => {
+            emit_launch_log(
+                app,
+                "info",
+                format!("本机 Java 扫描完成，发现 {} 个可用项", installations.len()),
+                None,
+            );
+            if let Some(java) = select_best_java(&installations, required_major) {
+                emit_launch_log(
+                    app,
+                    "info",
+                    format!("自动选择 Java: {} · {}", java.display_name, java.path),
+                    None,
+                );
+                return Ok(java.path);
             }
             emit_launch_log(
                 app,
                 "info",
-                format!(
-                    "Java `{requested}` 版本 {major} 不满足当前版本要求 {}，改用 Mojang 运行时",
-                    required_major.unwrap_or_default()
-                ),
+                format!("未找到满足 Java {required_major}+ 的本机 Java，准备使用 Mojang Runtime"),
                 None,
             );
         }
-        Ok(None) => emit_launch_log(app, "info", format!("无法识别 Java `{requested}` 的版本，改用 Mojang 运行时"), None),
-        Err(error) => emit_launch_log(app, "info", format!("{error}，改用 Mojang 运行时"), None),
+        Err(error) => emit_launch_log(app, "info", format!("扫描本机 Java 失败: {error}"), None),
     }
 
     let component = component.ok_or("版本 JSON 未声明 javaVersion，且当前 Java 不可用")?;
@@ -927,8 +1372,13 @@ async fn prepare_java_executable(
         if java_path.exists() {
             let java = java_path.display().to_string();
             if let Ok(Some(major)) = java_major_version(&java) {
-                if required_major.map(|required| major >= required).unwrap_or(true) {
-                    emit_launch_log(app, "info", format!("使用已安装的 Mojang Java Runtime: {java}"), None);
+                if major >= required_major {
+                    emit_launch_log(
+                        app,
+                        "info",
+                        format!("使用已安装的 Mojang Java Runtime: {java}"),
+                        None,
+                    );
                     return Ok(java);
                 }
             }
@@ -937,6 +1387,32 @@ async fn prepare_java_executable(
 
     let java = download_java_runtime(app, &http_client()?, &component).await?;
     Ok(java.display().to_string())
+}
+
+fn resolve_java_for_preview(version_json: &Value, requested_java: &str) -> String {
+    let requested = requested_java.trim();
+    let auto_mode = requested.is_empty() || requested.eq_ignore_ascii_case("auto");
+    let required_major = required_java_major_or_default(version_json);
+    if !auto_mode {
+        if let Ok(Some(major)) = java_major_version(requested) {
+            if major >= required_major {
+                return requested.to_string();
+            }
+        }
+    }
+    if let Ok(installations) = scan_java_installations_sync() {
+        if let Some(java) = select_best_java(&installations, required_major) {
+            return java.path;
+        }
+    }
+    if let Some(component) = java_component_for_version(version_json) {
+        if let Ok(java_path) = runtime_java_path(&component) {
+            if java_path.exists() {
+                return java_path.display().to_string();
+            }
+        }
+    }
+    "java".to_string()
 }
 
 fn rule_matches(rule: &Value) -> bool {
@@ -1050,11 +1526,94 @@ fn library_name_to_path(root: &Path, name: &str, classifier: Option<&str>) -> Op
         .filter(|value| !value.is_empty())
         .map(|value| format!("-{value}"))
         .unwrap_or_default();
-    let relative = format!("{group}/{artifact}/{version}/{artifact}-{version}{classifier}.{extension}");
+    let relative =
+        format!("{group}/{artifact}/{version}/{artifact}-{version}{classifier}.{extension}");
     Some(
         root.join("libraries")
             .join(relative.replace('/', std::path::MAIN_SEPARATOR_STR)),
     )
+}
+
+fn library_name_to_relative_path(name: &str, classifier: Option<&str>) -> Option<String> {
+    let mut parts = name.split(':').collect::<Vec<_>>();
+    if parts.len() < 3 {
+        return None;
+    }
+
+    let group = parts.remove(0).replace('.', "/");
+    let artifact = parts.remove(0);
+    let version = parts.remove(0);
+    let mut file_classifier = classifier.map(ToOwned::to_owned);
+    let mut extension = "jar".to_string();
+
+    if let Some(extra) = parts.first().copied() {
+        let (extra_classifier, extra_extension) = extra
+            .split_once('@')
+            .map(|(left, right)| (left, right))
+            .unwrap_or((extra, "jar"));
+        if file_classifier.is_none() && !extra_classifier.is_empty() {
+            file_classifier = Some(extra_classifier.to_string());
+        }
+        extension = extra_extension.to_string();
+    }
+
+    let classifier = file_classifier
+        .filter(|value| !value.is_empty())
+        .map(|value| format!("-{value}"))
+        .unwrap_or_default();
+    Some(format!(
+        "{group}/{artifact}/{version}/{artifact}-{version}{classifier}.{extension}"
+    ))
+}
+
+fn library_maven_url(library: &Value, classifier: Option<&str>) -> Option<String> {
+    let name = library.get("name").and_then(Value::as_str)?;
+    let relative = library_name_to_relative_path(name, classifier)?;
+    let base = library
+        .get("url")
+        .and_then(Value::as_str)
+        .unwrap_or("https://libraries.minecraft.net/");
+    Some(format!("{}/{}", base.trim_end_matches('/'), relative))
+}
+
+fn library_download_file(root: &Path, library: &Value) -> Option<DownloadFile> {
+    if let Some(artifact) = library.pointer("/downloads/artifact") {
+        if let (Some(url), Some(path)) = (
+            artifact.get("url").and_then(Value::as_str),
+            artifact_path(root, artifact),
+        ) {
+            return Some(DownloadFile {
+                urls: mirror_urls(url),
+                path,
+                sha1: artifact
+                    .get("sha1")
+                    .and_then(Value::as_str)
+                    .map(ToOwned::to_owned),
+                size: artifact.get("size").and_then(Value::as_i64),
+                label: library
+                    .get("name")
+                    .and_then(Value::as_str)
+                    .unwrap_or("library")
+                    .to_string(),
+                is_json: false,
+            });
+        }
+    }
+
+    let name = library.get("name").and_then(Value::as_str)?;
+    let url = library_maven_url(library, None)?;
+    let path = library_name_to_path(root, name, None)?;
+    Some(DownloadFile {
+        urls: mirror_urls(&url),
+        path,
+        sha1: library
+            .get("sha1")
+            .and_then(Value::as_str)
+            .map(ToOwned::to_owned),
+        size: library.get("size").and_then(Value::as_i64),
+        label: name.to_string(),
+        is_json: false,
+    })
 }
 
 fn library_name_parts(library: &Value) -> Option<Vec<&str>> {
@@ -1251,7 +1810,11 @@ fn native_extract_excludes(library: &Value) -> Vec<String> {
         .unwrap_or_default()
 }
 
-fn extract_native_jar(jar_path: &Path, output_dir: &Path, excludes: &[String]) -> Result<(), String> {
+fn extract_native_jar(
+    jar_path: &Path,
+    output_dir: &Path,
+    excludes: &[String],
+) -> Result<(), String> {
     fs::create_dir_all(output_dir).map_err(to_string)?;
     let file = fs::File::open(jar_path).map_err(to_string)?;
     let mut archive = zip::ZipArchive::new(file).map_err(to_string)?;
@@ -1426,7 +1989,12 @@ fn merge_version_json(parent: Value, child: Value) -> Value {
     merge_objects(&mut merged, &child);
 
     if !parent_libraries.is_empty() || !child_libraries.is_empty() {
-        let libraries = dedupe_libraries(child_libraries.into_iter().chain(parent_libraries).collect());
+        let libraries = dedupe_libraries(
+            child_libraries
+                .into_iter()
+                .chain(parent_libraries)
+                .collect(),
+        );
         merged["libraries"] = Value::Array(libraries);
     }
 
@@ -1434,7 +2002,10 @@ fn merge_version_json(parent: Value, child: Value) -> Value {
         set_argument_array(
             &mut merged,
             "game",
-            parent_game_args.into_iter().chain(child_game_args).collect(),
+            parent_game_args
+                .into_iter()
+                .chain(child_game_args)
+                .collect(),
         );
     }
     if !parent_jvm_args.is_empty() || !child_jvm_args.is_empty() {
@@ -1449,7 +2020,11 @@ fn merge_version_json(parent: Value, child: Value) -> Value {
 }
 
 fn normalize_version_json_libraries(mut version_json: Value) -> Value {
-    if version_json.get("libraries").and_then(Value::as_array).is_some() {
+    if version_json
+        .get("libraries")
+        .and_then(Value::as_array)
+        .is_some()
+    {
         version_json["libraries"] = Value::Array(version_libraries(&version_json));
     }
     version_json
@@ -1507,6 +2082,289 @@ fn detect_loader(version_id: &str, version_json: &Value) -> String {
     }
 }
 
+fn directory_has_files(path: &Path) -> bool {
+    fs::read_dir(path)
+        .map(|entries| {
+            entries.flatten().any(|entry| {
+                entry
+                    .file_type()
+                    .map(|kind| kind.is_file())
+                    .unwrap_or(false)
+            })
+        })
+        .unwrap_or(false)
+}
+
+fn directory_has_directories(path: &Path) -> bool {
+    fs::read_dir(path)
+        .map(|entries| {
+            entries
+                .flatten()
+                .any(|entry| entry.file_type().map(|kind| kind.is_dir()).unwrap_or(false))
+        })
+        .unwrap_or(false)
+}
+
+fn should_isolate_version(
+    version_id: &str,
+    version_json: &Value,
+    version_dir: &Path,
+) -> (bool, String) {
+    if directory_has_files(&version_dir.join("mods")) {
+        return (
+            true,
+            "版本文件夹中存在 mods，按 PCL 规则自动开启版本隔离".to_string(),
+        );
+    }
+    if directory_has_directories(&version_dir.join("saves")) {
+        return (
+            true,
+            "版本文件夹中存在 saves，按 PCL 规则自动开启版本隔离".to_string(),
+        );
+    }
+    let loader = detect_loader(version_id, version_json);
+    if loader != "原版" {
+        return (
+            true,
+            format!("{loader} 是可安装 Mod 的版本，按默认规则开启版本隔离"),
+        );
+    }
+    (
+        false,
+        "原版且版本文件夹未发现独立 mods/saves，使用 .minecraft 根目录".to_string(),
+    )
+}
+
+fn isolated_game_dir(
+    version_id: &str,
+    version_json: &Value,
+) -> Result<(PathBuf, bool, String), String> {
+    let root = minecraft_root()?;
+    let version_dir = version_dir_path(version_id)?;
+    let (isolated, reason) = should_isolate_version(version_id, version_json, &version_dir);
+    let game_dir = if isolated { version_dir } else { root };
+    Ok((game_dir, isolated, reason))
+}
+
+fn run_hidden_output(command: &mut Command) -> Result<String, String> {
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        command.creation_flags(0x08000000);
+    }
+    let output = command.output().map_err(to_string)?;
+    if !output.status.success() {
+        return Err(String::from_utf8_lossy(&output.stderr).trim().to_string());
+    }
+    Ok(format!(
+        "{}\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    ))
+}
+
+fn parse_key_value_i64(text: &str, key: &str) -> Option<i64> {
+    text.lines().find_map(|line| {
+        let (left, right) = line.split_once('=')?;
+        if left.trim().eq_ignore_ascii_case(key) {
+            right.trim().parse::<i64>().ok()
+        } else {
+            None
+        }
+    })
+}
+
+fn system_memory_mb() -> (i64, i64) {
+    #[cfg(target_os = "windows")]
+    {
+        let mut command = Command::new("powershell");
+        command.args([
+            "-NoProfile",
+            "-Command",
+            "Get-CimInstance Win32_OperatingSystem | ForEach-Object { \"TotalVisibleMemorySize=$($_.TotalVisibleMemorySize)\"; \"FreePhysicalMemory=$($_.FreePhysicalMemory)\" }",
+        ]);
+        if let Ok(text) = run_hidden_output(&mut command) {
+            if let (Some(total_kb), Some(free_kb)) = (
+                parse_key_value_i64(&text, "TotalVisibleMemorySize"),
+                parse_key_value_i64(&text, "FreePhysicalMemory"),
+            ) {
+                return ((total_kb / 1024).max(0), (free_kb / 1024).max(0));
+            }
+        }
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        if let Ok(text) = fs::read_to_string("/proc/meminfo") {
+            let parse_mem = |name: &str| -> Option<i64> {
+                text.lines().find_map(|line| {
+                    let mut parts = line.split_whitespace();
+                    if parts.next()? == name {
+                        parts.next()?.parse::<i64>().ok().map(|kb| kb / 1024)
+                    } else {
+                        None
+                    }
+                })
+            };
+            let total = parse_mem("MemTotal:").unwrap_or(0);
+            let available = parse_mem("MemAvailable:").unwrap_or_else(|| parse_mem("MemFree:").unwrap_or(0));
+            return (total, available);
+        }
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        let mut total_cmd = Command::new("sysctl");
+        total_cmd.args(["-n", "hw.memsize"]);
+        if let Ok(total_text) = run_hidden_output(&mut total_cmd) {
+            if let Ok(total_bytes) = total_text.trim().parse::<i64>() {
+                let total_mb = total_bytes / 1024 / 1024;
+                return (total_mb, total_mb / 2);
+            }
+        }
+    }
+
+    (0, 0)
+}
+
+fn count_mod_files(game_dir: &Path) -> usize {
+    fs::read_dir(game_dir.join("mods"))
+        .map(|entries| {
+            entries
+                .flatten()
+                .filter(|entry| entry.file_type().map(|kind| kind.is_file()).unwrap_or(false))
+                .filter(|entry| {
+                    entry
+                        .path()
+                        .extension()
+                        .and_then(|value| value.to_str())
+                        .map(|extension| {
+                            matches!(
+                                extension.to_ascii_lowercase().as_str(),
+                                "jar" | "zip" | "litemod"
+                            )
+                        })
+                        .unwrap_or(false)
+                })
+                .count()
+        })
+        .unwrap_or_default()
+}
+
+fn version_has_optifine(version_id: &str, version_json: &Value) -> bool {
+    let text = format!(
+        "{}\n{}\n{}",
+        version_id,
+        version_json
+            .get("mainClass")
+            .and_then(Value::as_str)
+            .unwrap_or(""),
+        version_libraries(version_json)
+            .iter()
+            .filter_map(|library| library.get("name").and_then(Value::as_str))
+            .collect::<Vec<_>>()
+            .join("\n")
+    )
+    .to_ascii_lowercase();
+    text.contains("optifine")
+}
+
+fn recommend_memory_for_version(
+    version_id: &str,
+    version_json: &Value,
+) -> Result<MemoryRecommendation, String> {
+    let (total_mb, available_mb) = system_memory_mb();
+    let (_, isolated, _) = isolated_game_dir(version_id, version_json)?;
+    let game_dir = isolated_game_dir(version_id, version_json)?.0;
+    let loader = detect_loader(version_id, version_json);
+    let modable = loader != "原版";
+    let mod_count = count_mod_files(&game_dir);
+    let available_gb = if available_mb > 0 {
+        available_mb as f64 / 1024.0
+    } else if total_mb > 0 {
+        total_mb as f64 / 1024.0 * 0.6
+    } else {
+        4.0
+    };
+
+    let (minimum, target1, target2, target3, reason) = if modable {
+        (
+            0.5 + mod_count as f64 / 150.0,
+            1.5 + mod_count as f64 / 90.0,
+            2.7 + mod_count as f64 / 50.0,
+            4.5 + mod_count as f64 / 25.0,
+            format!("{loader} 版本，检测到 {mod_count} 个 Mod 文件"),
+        )
+    } else if version_has_optifine(version_id, version_json) {
+        (
+            0.5,
+            1.5,
+            3.0,
+            5.0,
+            "OptiFine 版本，按光影预留内存".to_string(),
+        )
+    } else {
+        (
+            0.5,
+            1.5,
+            2.5,
+            4.0,
+            if isolated {
+                "已隔离的原版实例，按普通版本分配".to_string()
+            } else {
+                "原版实例，按普通版本分配".to_string()
+            },
+        )
+    };
+
+    let mut ram_give = 0.0;
+    let mut remaining = available_gb;
+    let stage = |delta: f64, ratio: f64, ram_give: &mut f64, remaining: &mut f64| {
+        if *remaining < 0.1 {
+            return;
+        }
+        *ram_give += (*remaining * ratio).min(delta);
+        *remaining -= delta / ratio;
+    };
+    stage(target1, 1.0, &mut ram_give, &mut remaining);
+    stage(target2 - target1, 0.7, &mut ram_give, &mut remaining);
+    stage(target3 - target2, 0.4, &mut ram_give, &mut remaining);
+    stage(target3, 0.15, &mut ram_give, &mut remaining);
+
+    let ram_gb = (ram_give.max(minimum) * 10.0).round() / 10.0;
+    let mut recommended_mb = ((ram_gb * 1024.0 / 128.0).round() * 128.0) as i64;
+    if total_mb > 0 {
+        recommended_mb = recommended_mb.min((total_mb - 512).max(1024));
+    }
+    recommended_mb = recommended_mb.clamp(512, 32768);
+
+    Ok(MemoryRecommendation {
+        total_mb,
+        available_mb,
+        recommended_mb,
+        mod_count,
+        modable,
+        reason,
+    })
+}
+
+fn resolve_memory_mb(
+    version_id: &str,
+    version_json: &Value,
+    memory_mode: Option<&str>,
+    manual_mb: i64,
+) -> Result<(i64, Option<MemoryRecommendation>), String> {
+    if memory_mode
+        .unwrap_or("manual")
+        .eq_ignore_ascii_case("auto")
+    {
+        let recommendation = recommend_memory_for_version(version_id, version_json)?;
+        Ok((recommendation.recommended_mb, Some(recommendation)))
+    } else {
+        Ok((manual_mb.max(512), None))
+    }
+}
+
 #[derive(Clone)]
 struct DownloadFile {
     urls: Vec<String>,
@@ -1540,8 +2398,7 @@ async fn set_minecraft_root(path: String) -> Result<DataPaths, String> {
 async fn choose_minecraft_root() -> Result<Option<DataPaths>, String> {
     let current = minecraft_root().unwrap_or_else(|_| {
         official_minecraft_root().unwrap_or_else(|| {
-            dirs::home_dir()
-                .unwrap_or_else(|| PathBuf::from(std::path::MAIN_SEPARATOR.to_string()))
+            dirs::home_dir().unwrap_or_else(|| PathBuf::from(std::path::MAIN_SEPARATOR.to_string()))
         })
     });
     let picked = rfd::FileDialog::new()
@@ -1556,6 +2413,34 @@ async fn choose_minecraft_root() -> Result<Option<DataPaths>, String> {
     config.minecraft_root = Some(root.display().to_string());
     save_launcher_config(&config)?;
     Ok(Some(data_paths()?))
+}
+
+#[tauri::command]
+async fn scan_java_installations() -> Result<Vec<JavaInstallation>, String> {
+    tokio::task::spawn_blocking(scan_java_installations_sync)
+        .await
+        .map_err(to_string)?
+}
+
+#[tauri::command]
+async fn recommend_memory(version_id: String) -> Result<MemoryRecommendation, String> {
+    let version_json = resolve_installed_version_json(&version_id)?;
+    recommend_memory_for_version(&version_id, &version_json)
+}
+
+#[tauri::command]
+async fn choose_java_executable() -> Result<Option<JavaInstallation>, String> {
+    let mut dialog = rfd::FileDialog::new().set_title("选择 Java 可执行文件");
+    #[cfg(target_os = "windows")]
+    {
+        dialog = dialog.add_filter("Java", &["exe"]);
+    }
+    let Some(path) = dialog.pick_file() else {
+        return Ok(None);
+    };
+    inspect_java_installation(&path, "手动导入")
+        .map(Some)
+        .ok_or_else(|| format!("无法识别这个 Java：{}", path.display()))
 }
 
 #[tauri::command]
@@ -1602,7 +2487,11 @@ async fn list_installed_versions() -> Result<Vec<InstalledVersion>, String> {
         let kind = version_json
             .get("type")
             .and_then(Value::as_str)
-            .unwrap_or(if loader == "原版" { "release" } else { "modded" })
+            .unwrap_or(if loader == "原版" {
+                "release"
+            } else {
+                "modded"
+            })
             .to_string();
         let has_client = primary_jar_path(&id, &version_json)
             .map(|path| path.exists())
@@ -1629,6 +2518,32 @@ async fn list_installed_versions() -> Result<Vec<InstalledVersion>, String> {
         b_key.cmp(&a_key)
     });
     Ok(versions)
+}
+
+#[tauri::command]
+async fn delete_installed_version(version_id: String) -> Result<(), String> {
+    let trimmed = version_id.trim();
+    if trimmed.is_empty() {
+        return Err("请选择要删除的版本".to_string());
+    }
+    if trimmed.contains('/') || trimmed.contains('\\') {
+        return Err("版本 ID 不能包含路径分隔符".to_string());
+    }
+
+    let root = versions_root()?;
+    let target = root.join(trimmed);
+    if !target.exists() {
+        return Err(format!("版本不存在：{trimmed}"));
+    }
+    let root = root.canonicalize().map_err(to_string)?;
+    let target = target.canonicalize().map_err(to_string)?;
+    if target == root || !target.starts_with(&root) {
+        return Err("拒绝删除 versions 目录之外的路径".to_string());
+    }
+    if !target.is_dir() {
+        return Err("目标不是版本文件夹".to_string());
+    }
+    fs::remove_dir_all(target).map_err(to_string)
 }
 
 #[tauri::command]
@@ -1704,11 +2619,244 @@ async fn get_version_summary(version_id: String) -> Result<VersionSummary, Strin
     })
 }
 
+fn loader_download_label(loader: &str) -> Option<&'static str> {
+    match loader.trim().to_ascii_lowercase().as_str() {
+        "fabric" => Some("Fabric"),
+        "forge" => Some("Forge"),
+        "none" | "" => None,
+        _ => None,
+    }
+}
+
+async fn download_profile_libraries(
+    app: &AppHandle,
+    client: &Client,
+    version_json: &Value,
+    phase: &str,
+) -> Result<(), String> {
+    let root = minecraft_root()?;
+    let libraries = version_libraries(version_json);
+    let mut downloads = Vec::<DownloadFile>::new();
+    let mut paths = HashSet::new();
+    for library in libraries.iter().filter(|library| rules_allow(library.get("rules"))) {
+        if let Some(file) = library_download_file(&root, library) {
+            if paths.insert(file.path.clone()) {
+                downloads.push(file);
+            }
+        }
+    }
+
+    let total = downloads.len();
+    let done = Arc::new(AtomicUsize::new(0));
+    let results = stream::iter(downloads.into_iter())
+        .map(|file| {
+            let client = client.clone();
+            let app = app.clone();
+            let done = done.clone();
+            async move {
+                let result = download_to_path(
+                    &client,
+                    file.urls,
+                    &file.path,
+                    file.sha1.as_deref(),
+                    file.size,
+                    file.is_json,
+                )
+                .await;
+                let current = done.fetch_add(1, Ordering::SeqCst) + 1;
+                emit_progress(&app, phase, current, total.max(1), file.label.clone());
+                result.map_err(|error| format!("{}: {error}", file.label))
+            }
+        })
+        .buffer_unordered(8)
+        .collect::<Vec<_>>()
+        .await;
+    let failed = results.into_iter().filter_map(Result::err).collect::<Vec<_>>();
+    if failed.is_empty() {
+        Ok(())
+    } else {
+        Err(format!(
+            "{} 个加载器支持库下载失败：{}",
+            failed.len(),
+            failed.into_iter().take(4).collect::<Vec<_>>().join("; ")
+        ))
+    }
+}
+
+async fn install_fabric_loader(
+    app: &AppHandle,
+    client: &Client,
+    game_version: &str,
+) -> Result<String, String> {
+    emit_progress(app, "loader", 0, 3, "获取 Fabric Loader 列表");
+    let versions = fetch_json_from_urls::<Value>(
+        client,
+        vec![format!("{FABRIC_META_API}/versions/loader/{game_version}")],
+    )
+    .await?;
+    let loader_version = versions
+        .as_array()
+        .and_then(|items| items.first())
+        .and_then(|item| item.pointer("/loader/version"))
+        .and_then(Value::as_str)
+        .ok_or_else(|| format!("Fabric 暂未提供 Minecraft {game_version} 的加载器"))?;
+
+    emit_progress(
+        app,
+        "loader",
+        1,
+        3,
+        format!("获取 Fabric {loader_version} 启动配置"),
+    );
+    let profile_url =
+        format!("{FABRIC_META_API}/versions/loader/{game_version}/{loader_version}/profile/json");
+    let profile = fetch_json_from_urls::<Value>(client, vec![profile_url]).await?;
+    let profile_id = profile
+        .get("id")
+        .and_then(Value::as_str)
+        .unwrap_or("")
+        .trim();
+    let profile_id = if profile_id.is_empty() {
+        format!("fabric-loader-{loader_version}-{game_version}")
+    } else {
+        profile_id.to_string()
+    };
+
+    let profile_dir = versions_root()?.join(&profile_id);
+    fs::create_dir_all(&profile_dir).map_err(to_string)?;
+    let profile_path = profile_dir.join(format!("{profile_id}.json"));
+    fs::write(
+        &profile_path,
+        serde_json::to_string_pretty(&profile).map_err(to_string)?,
+    )
+    .map_err(to_string)?;
+
+    emit_progress(app, "loader", 2, 3, "下载 Fabric 支持库");
+    download_profile_libraries(app, client, &profile, "loader").await?;
+    emit_progress(
+        app,
+        "loader",
+        3,
+        3,
+        format!("Fabric {loader_version} 安装完成"),
+    );
+    Ok(profile_id)
+}
+
+fn java_for_installer(version_json: &Value) -> String {
+    let required_major = required_java_major_or_default(version_json);
+    scan_java_installations_sync()
+        .ok()
+        .and_then(|installations| select_best_java(&installations, required_major))
+        .map(|java| java.path)
+        .unwrap_or_else(|| "java".to_string())
+}
+
+async fn install_forge_loader(
+    app: &AppHandle,
+    client: &Client,
+    game_version: &str,
+    vanilla_json: &Value,
+) -> Result<String, String> {
+    emit_progress(app, "loader", 0, 4, "获取 Forge 版本信息");
+    let promotions = fetch_json_from_urls::<Value>(
+        client,
+        vec![
+            FORGE_PROMOTIONS_URL.to_string(),
+            "https://bmclapi2.bangbang93.com/maven/net/minecraftforge/forge/promotions_slim.json"
+                .to_string(),
+        ],
+    )
+    .await?;
+    let promos = promotions
+        .get("promos")
+        .and_then(Value::as_object)
+        .ok_or("Forge promotions_slim.json 缺少 promos")?;
+    let forge_version = promos
+        .get(&format!("{game_version}-recommended"))
+        .or_else(|| promos.get(&format!("{game_version}-latest")))
+        .and_then(Value::as_str)
+        .ok_or_else(|| format!("Forge 暂未提供 Minecraft {game_version} 的安装器"))?;
+
+    let artifact = format!("{game_version}-{forge_version}");
+    let installer_name = format!("forge-{artifact}-installer.jar");
+    let installer_url =
+        format!("https://maven.minecraftforge.net/net/minecraftforge/forge/{artifact}/{installer_name}");
+    let installer_path = launcher_root()?
+        .join("cache")
+        .join("forge")
+        .join(&artifact)
+        .join(&installer_name);
+
+    emit_progress(app, "loader", 1, 4, format!("下载 Forge {forge_version} 安装器"));
+    download_to_path(
+        client,
+        mirror_urls(&installer_url),
+        &installer_path,
+        None,
+        None,
+        false,
+    )
+    .await?;
+
+    emit_progress(app, "loader", 2, 4, "运行 Forge 客户端安装器");
+    let java = java_for_installer(vanilla_json);
+    let root = minecraft_root()?;
+    let mut command = Command::new(&java);
+    command
+        .arg("-jar")
+        .arg(&installer_path)
+        .arg("--installClient")
+        .arg(&root)
+        .current_dir(&root)
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        command.creation_flags(0x08000000);
+    }
+    let output = command.output().map_err(to_string)?;
+    let output_text = format!(
+        "{}\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    if !output.status.success() {
+        return Err(format!("Forge 安装器执行失败：{}", output_text.trim()));
+    }
+
+    emit_progress(app, "loader", 3, 4, "校验 Forge 版本目录");
+    let installed_versions = list_installed_versions().await?;
+    let installed_id = installed_versions
+        .iter()
+        .find(|version| {
+            version.loader.eq_ignore_ascii_case("forge")
+                && version
+                    .inherits_from
+                    .as_deref()
+                    .map(|parent| parent == game_version)
+                    .unwrap_or_else(|| version.id.contains(game_version))
+                && version.id.contains(forge_version)
+        })
+        .map(|version| version.id.clone())
+        .unwrap_or_else(|| format!("{game_version}-forge-{forge_version}"));
+    emit_progress(
+        app,
+        "loader",
+        4,
+        4,
+        format!("Forge {forge_version} 安装完成"),
+    );
+    Ok(installed_id)
+}
+
 #[tauri::command]
 async fn download_version(
     app: AppHandle,
     version_id: String,
     include_assets: bool,
+    loader: Option<String>,
 ) -> Result<(), String> {
     let client = http_client()?;
     let root = minecraft_root()?;
@@ -1758,7 +2906,10 @@ async fn download_version(
     let mut library_downloads: Vec<DownloadFile> = Vec::new();
     let mut native_jars = Vec::new();
     let mut library_paths = HashSet::new();
-    for library in libraries.iter().filter(|library| rules_allow(library.get("rules"))) {
+    for library in libraries
+        .iter()
+        .filter(|library| rules_allow(library.get("rules")))
+    {
         if let Some(classifier) = standalone_native_classifier(library) {
             if !native_classifier_matches_current(classifier) {
                 continue;
@@ -1790,28 +2941,9 @@ async fn download_version(
             }
             continue;
         }
-        if let Some(artifact) = library.pointer("/downloads/artifact") {
-            if let (Some(url), Some(path)) = (
-                artifact.get("url").and_then(Value::as_str),
-                artifact_path(&root, artifact),
-            ) {
-                if library_paths.insert(path.clone()) {
-                    library_downloads.push(DownloadFile {
-                        urls: mirror_urls(url),
-                        path,
-                        sha1: artifact
-                            .get("sha1")
-                            .and_then(Value::as_str)
-                            .map(ToOwned::to_owned),
-                        size: artifact.get("size").and_then(Value::as_i64),
-                        label: library
-                            .get("name")
-                            .and_then(Value::as_str)
-                            .unwrap_or("library")
-                            .to_string(),
-                        is_json: false,
-                    });
-                }
+        if let Some(file) = library_download_file(&root, library) {
+            if library_paths.insert(file.path.clone()) {
+                library_downloads.push(file);
             }
         }
 
@@ -2023,7 +3155,37 @@ async fn download_version(
         }
     }
 
-    emit_progress(&app, "done", 1, 1, "版本下载完成");
+    if let Some(loader_name) = loader
+        .as_deref()
+        .and_then(loader_download_label)
+        .map(ToOwned::to_owned)
+    {
+        match loader_name.as_str() {
+            "Fabric" => {
+                let profile_id = install_fabric_loader(&app, &client, &version_id).await?;
+                emit_progress(
+                    &app,
+                    "done",
+                    1,
+                    1,
+                    format!("版本下载完成，已安装 {profile_id}"),
+                );
+            }
+            "Forge" => {
+                let profile_id = install_forge_loader(&app, &client, &version_id, &version_json).await?;
+                emit_progress(
+                    &app,
+                    "done",
+                    1,
+                    1,
+                    format!("版本下载完成，已安装 {profile_id}"),
+                );
+            }
+            _ => {}
+        }
+    } else {
+        emit_progress(&app, "done", 1, 1, "版本下载完成");
+    }
     Ok(())
 }
 
@@ -2363,10 +3525,13 @@ fn build_launch_arguments(
     let root = minecraft_root()?;
     ensure_minecraft_dirs(&root)?;
     let version_dir = version_dir_path(version_id)?;
-    let game_dir = root.clone();
-    let natives_dir = version_dir
-        .join("natives")
-        .join(format!("{}-{}-{}", current_os_name(), std::process::id(), unix_timestamp()));
+    let (game_dir, _, _) = isolated_game_dir(version_id, version_json)?;
+    let natives_dir = version_dir.join("natives").join(format!(
+        "{}-{}-{}",
+        current_os_name(),
+        std::process::id(),
+        unix_timestamp()
+    ));
     fs::create_dir_all(&game_dir).map_err(to_string)?;
     fs::create_dir_all(game_dir.join("mods")).map_err(to_string)?;
 
@@ -2510,10 +3675,7 @@ fn build_launch_arguments(
         "library_directory",
         root.join("libraries").display().to_string(),
     );
-    replacements.insert(
-        "classpath_separator",
-        classpath_sep.to_string(),
-    );
+    replacements.insert("classpath_separator", classpath_sep.to_string());
 
     let mut args = Vec::new();
     if max_memory_mb > 0 {
@@ -2549,7 +3711,11 @@ fn build_launch_arguments(
     };
     args.extend(game_args);
 
-    let executable = java_path.trim().to_string();
+    let executable = if java_path.trim().is_empty() {
+        "java".to_string()
+    } else {
+        java_path.trim().to_string()
+    };
     Ok((executable, args, game_dir))
 }
 
@@ -2559,6 +3725,7 @@ async fn launch_game(
     version_id: String,
     java_path: String,
     max_memory_mb: i64,
+    memory_mode: Option<String>,
     account: Option<LaunchAccount>,
 ) -> Result<LaunchResult, String> {
     let account = account.ok_or("请先完成正版登录或创建离线账号，再启动游戏")?;
@@ -2581,6 +3748,8 @@ async fn launch_game(
         None,
     );
     let version_json = resolve_installed_version_json(&version_id)?;
+    let (resolved_game_dir, isolated, isolation_reason) =
+        isolated_game_dir(&version_id, &version_json)?;
     emit_launch_log(
         &app,
         "info",
@@ -2610,18 +3779,60 @@ async fn launch_game(
         ),
         None,
     );
+    emit_launch_log(
+        &app,
+        "info",
+        format!(
+            "版本隔离: {}（{}）",
+            if isolated { "已启用" } else { "未启用" },
+            isolation_reason
+        ),
+        None,
+    );
+    emit_launch_log(
+        &app,
+        "info",
+        format!("游戏目录: {}", resolved_game_dir.display()),
+        None,
+    );
     let java_executable = prepare_java_executable(&app, &version_json, &java_path).await?;
+    let (memory_mb, memory_recommendation) = resolve_memory_mb(
+        &version_id,
+        &version_json,
+        memory_mode.as_deref(),
+        max_memory_mb,
+    )?;
     let (executable, args, game_dir) = build_launch_arguments(
         &version_id,
         &version_json,
         &java_executable,
-        max_memory_mb,
+        memory_mb,
         &account,
     )?;
     let command_preview = sanitize_command_preview(&executable, &args, &account);
-    emit_launch_log(&app, "info", format!("工作目录: {}", game_dir.display()), None);
+    emit_launch_log(
+        &app,
+        "info",
+        format!("工作目录: {}", game_dir.display()),
+        None,
+    );
     emit_launch_log(&app, "info", format!("Java: {executable}"), None);
-    emit_launch_log(&app, "info", format!("内存上限: {max_memory_mb} MB"), None);
+    if let Some(recommendation) = memory_recommendation {
+        emit_launch_log(
+            &app,
+            "info",
+            format!(
+                "内存模式: 自动，分配 {} MB（可用 {} MB / 总计 {} MB；{}）",
+                recommendation.recommended_mb,
+                recommendation.available_mb,
+                recommendation.total_mb,
+                recommendation.reason
+            ),
+            None,
+        );
+    } else {
+        emit_launch_log(&app, "info", format!("内存模式: 手动，分配 {memory_mb} MB"), None);
+    }
     emit_launch_log(&app, "command", command_preview.clone(), None);
     let mut command = Command::new(&executable);
     command
@@ -2636,7 +3847,12 @@ async fn launch_game(
     }
     let mut child = command.spawn().map_err(to_string)?;
     let pid = child.id();
-    emit_launch_log(&app, "info", format!("游戏进程已创建，PID: {pid}"), Some(pid));
+    emit_launch_log(
+        &app,
+        "info",
+        format!("游戏进程已创建，PID: {pid}"),
+        Some(pid),
+    );
     if let Some(stdout) = child.stdout.take() {
         spawn_log_reader(app.clone(), pid, "stdout", stdout);
     }
@@ -2658,7 +3874,12 @@ async fn launch_game(
                 ),
                 Some(pid),
             ),
-            Err(error) => emit_launch_log(&app, "exit", format!("等待游戏进程失败: {error}"), Some(pid)),
+            Err(error) => emit_launch_log(
+                &app,
+                "exit",
+                format!("等待游戏进程失败: {error}"),
+                Some(pid),
+            ),
         }
     });
     Ok(LaunchResult {
@@ -2673,6 +3894,7 @@ async fn preview_launch_command(
     version_id: String,
     java_path: String,
     max_memory_mb: i64,
+    memory_mode: Option<String>,
     account: Option<LaunchAccount>,
 ) -> Result<LaunchResult, String> {
     let fallback = LaunchAccount {
@@ -2684,19 +3906,311 @@ async fn preview_launch_command(
         account_type: "offline".to_string(),
     };
     let version_json = resolve_installed_version_json(&version_id)?;
+    let java_executable = resolve_java_for_preview(&version_json, &java_path);
+    let (memory_mb, _) = resolve_memory_mb(
+        &version_id,
+        &version_json,
+        memory_mode.as_deref(),
+        max_memory_mb,
+    )?;
     let (executable, args, game_dir) = build_launch_arguments(
         &version_id,
         &version_json,
-        &java_path,
-        max_memory_mb,
+        &java_executable,
+        memory_mb,
         account.as_ref().unwrap_or(&fallback),
     )?;
-    let command_preview = sanitize_command_preview(&executable, &args, account.as_ref().unwrap_or(&fallback));
+    let command_preview =
+        sanitize_command_preview(&executable, &args, account.as_ref().unwrap_or(&fallback));
     Ok(LaunchResult {
         pid: None,
         command_preview,
         game_directory: game_dir.display().to_string(),
     })
+}
+
+fn normalized_project_type(project_type: &str) -> String {
+    match project_type.trim().to_ascii_lowercase().as_str() {
+        "modpack" => "modpack",
+        "resourcepack" => "resourcepack",
+        "shader" => "shader",
+        _ => "mod",
+    }
+    .to_string()
+}
+
+fn project_type_target_folder(project_type: &str) -> Option<&'static str> {
+    match normalized_project_type(project_type).as_str() {
+        "resourcepack" => Some("resourcepacks"),
+        "shader" => Some("shaderpacks"),
+        "mod" => Some("mods"),
+        "modpack" => None,
+        _ => Some("mods"),
+    }
+}
+
+fn loader_applies_to_project_type(project_type: &str) -> bool {
+    matches!(
+        normalized_project_type(project_type).as_str(),
+        "mod" | "modpack"
+    )
+}
+
+fn looks_like_minecraft_version(value: &str) -> bool {
+    let value = value.trim();
+    value
+        .chars()
+        .next()
+        .map(|ch| ch.is_ascii_digit())
+        .unwrap_or(false)
+        && (value.contains('.') || value.contains('w'))
+}
+
+fn extract_minecraft_version_token(text: &str) -> Option<String> {
+    let chars = text.chars().collect::<Vec<_>>();
+    for start in 0..chars.len() {
+        if !chars[start].is_ascii_digit() {
+            continue;
+        }
+        let mut end = start;
+        while end < chars.len() && (chars[end].is_ascii_digit() || chars[end] == '.' || chars[end] == 'w' || chars[end].is_ascii_alphabetic()) {
+            end += 1;
+        }
+        let token = chars[start..end]
+            .iter()
+            .collect::<String>()
+            .trim_matches('.')
+            .to_string();
+        if looks_like_minecraft_version(&token) {
+            return Some(token);
+        }
+    }
+    None
+}
+
+fn argument_strings(value: Option<&Value>) -> Vec<String> {
+    let mut output = Vec::new();
+    let Some(Value::Array(items)) = value else {
+        return output;
+    };
+    for item in items {
+        match item {
+            Value::String(text) => output.push(text.to_string()),
+            Value::Object(object) => match object.get("value") {
+                Some(Value::String(text)) => output.push(text.to_string()),
+                Some(Value::Array(values)) => output.extend(
+                    values
+                        .iter()
+                        .filter_map(Value::as_str)
+                        .map(ToOwned::to_owned),
+                ),
+                _ => {}
+            },
+            _ => {}
+        }
+    }
+    output
+}
+
+fn argument_value_after(version_json: &Value, flag: &str) -> Option<String> {
+    let args = argument_strings(version_json.pointer("/arguments/game"));
+    args.windows(2).find_map(|window| {
+        if window.first().map(String::as_str) == Some(flag) {
+            window.get(1).cloned()
+        } else {
+            None
+        }
+    })
+}
+
+fn modrinth_game_version(game_version: &str) -> String {
+    let trimmed = game_version.trim();
+    if trimmed.is_empty() {
+        return String::new();
+    }
+    if let Ok(raw_json) = read_installed_version_json(trimmed) {
+        for candidate in [
+            raw_json.get("clientVersion").and_then(Value::as_str),
+            raw_json.get("inheritsFrom").and_then(Value::as_str),
+            raw_json.get("jar").and_then(Value::as_str),
+        ]
+        .into_iter()
+        .flatten()
+        {
+            if looks_like_minecraft_version(candidate) {
+                return candidate.to_string();
+            }
+        }
+        if let Some(value) = argument_value_after(&raw_json, "--fml.mcVersion") {
+            if looks_like_minecraft_version(&value) {
+                return value;
+            }
+        }
+        for library in version_libraries(&raw_json) {
+            if let Some(name) = library.get("name").and_then(Value::as_str) {
+                if name.starts_with("net.fabricmc:intermediary:") {
+                    if let Some(value) = name.split(':').nth(2) {
+                        return value.to_string();
+                    }
+                }
+            }
+        }
+    }
+    extract_minecraft_version_token(trimmed).unwrap_or_else(|| trimmed.to_string())
+}
+
+fn target_game_dir_for_version(version_id: &str) -> Result<PathBuf, String> {
+    let trimmed = version_id.trim();
+    if !trimmed.is_empty() && find_version_json_path(trimmed)?.is_some() {
+        let version_json = resolve_installed_version_json(trimmed)?;
+        return Ok(isolated_game_dir(trimmed, &version_json)?.0);
+    }
+    minecraft_root()
+}
+
+fn safe_relative_path(relative: &str) -> Result<PathBuf, String> {
+    let mut path = PathBuf::new();
+    for part in relative.replace('\\', "/").split('/') {
+        let part = part.trim();
+        if part.is_empty() || part == "." {
+            continue;
+        }
+        if part == ".." || part.contains(':') {
+            return Err(format!("资源包路径不安全: {relative}"));
+        }
+        path.push(part);
+    }
+    if path.as_os_str().is_empty() {
+        Err(format!("资源包路径为空: {relative}"))
+    } else {
+        Ok(path)
+    }
+}
+
+async fn install_modrinth_modpack(
+    client: &Client,
+    pack_path: &Path,
+    game_version: &str,
+) -> Result<PathBuf, String> {
+    let game_dir = target_game_dir_for_version(game_version)?;
+    fs::create_dir_all(&game_dir).map_err(to_string)?;
+
+    let file = fs::File::open(pack_path).map_err(to_string)?;
+    let mut archive = zip::ZipArchive::new(file).map_err(to_string)?;
+    let mut index_text = String::new();
+    {
+        let mut index_file = archive
+            .by_name("modrinth.index.json")
+            .map_err(|error| format!("整合包缺少 modrinth.index.json: {error}"))?;
+        index_file
+            .read_to_string(&mut index_text)
+            .map_err(to_string)?;
+    }
+
+    for index in 0..archive.len() {
+        let mut entry = archive.by_index(index).map_err(to_string)?;
+        let Some(enclosed) = entry.enclosed_name().map(PathBuf::from) else {
+            continue;
+        };
+        let relative = enclosed
+            .strip_prefix("overrides")
+            .or_else(|_| enclosed.strip_prefix("client-overrides"));
+        let Ok(relative) = relative else {
+            continue;
+        };
+        if relative.as_os_str().is_empty() {
+            continue;
+        }
+        let target = game_dir.join(relative);
+        if entry.is_dir() {
+            fs::create_dir_all(&target).map_err(to_string)?;
+        } else {
+            if let Some(parent) = target.parent() {
+                fs::create_dir_all(parent).map_err(to_string)?;
+            }
+            let mut outfile = fs::File::create(&target).map_err(to_string)?;
+            std::io::copy(&mut entry, &mut outfile).map_err(to_string)?;
+        }
+    }
+
+    let index_json = serde_json::from_str::<Value>(&index_text).map_err(to_string)?;
+    let files = index_json
+        .get("files")
+        .and_then(Value::as_array)
+        .cloned()
+        .unwrap_or_default();
+    let mut downloads = Vec::<DownloadFile>::new();
+    for file in files {
+        if file
+            .pointer("/env/client")
+            .and_then(Value::as_str)
+            .map(|value| value.eq_ignore_ascii_case("unsupported"))
+            .unwrap_or(false)
+        {
+            continue;
+        }
+        let Some(path) = file.get("path").and_then(Value::as_str) else {
+            continue;
+        };
+        let urls = file
+            .get("downloads")
+            .and_then(Value::as_array)
+            .map(|items| {
+                items
+                    .iter()
+                    .filter_map(Value::as_str)
+                    .map(ToOwned::to_owned)
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+        if urls.is_empty() {
+            continue;
+        }
+        downloads.push(DownloadFile {
+            urls,
+            path: game_dir.join(safe_relative_path(path)?),
+            sha1: file
+                .pointer("/hashes/sha1")
+                .and_then(Value::as_str)
+                .map(ToOwned::to_owned),
+            size: file.get("fileSize").and_then(Value::as_i64),
+            label: path.to_string(),
+            is_json: false,
+        });
+    }
+
+    let total = downloads.len();
+    let results = stream::iter(downloads.into_iter())
+        .map(|file| {
+            let client = client.clone();
+            async move {
+                download_to_path(
+                    &client,
+                    file.urls,
+                    &file.path,
+                    file.sha1.as_deref(),
+                    file.size,
+                    false,
+                )
+                .await
+                .map_err(|error| format!("{}: {error}", file.label))
+            }
+        })
+        .buffer_unordered(8)
+        .collect::<Vec<_>>()
+        .await;
+    let failed = results.into_iter().filter_map(Result::err).collect::<Vec<_>>();
+    if !failed.is_empty() {
+        return Err(format!(
+            "整合包中 {} 个文件下载失败：{}",
+            failed.len(),
+            failed.into_iter().take(4).collect::<Vec<_>>().join("; ")
+        ));
+    }
+    if total == 0 {
+        fs::create_dir_all(game_dir.join("mods")).map_err(to_string)?;
+    }
+    Ok(game_dir)
 }
 
 #[tauri::command]
@@ -2708,11 +4222,13 @@ async fn search_modrinth(
     limit: usize,
 ) -> Result<Value, String> {
     let client = http_client()?;
+    let project_type = normalized_project_type(&project_type);
+    let game_version = modrinth_game_version(&game_version);
     let mut facets = vec![vec![format!("project_type:{project_type}")]];
     if !game_version.trim().is_empty() {
         facets.push(vec![format!("versions:{}", game_version.trim())]);
     }
-    if !loader.trim().is_empty() {
+    if loader_applies_to_project_type(&project_type) && !loader.trim().is_empty() {
         facets.push(vec![format!("categories:{}", loader.trim())]);
     }
     let facets = serde_json::to_string(&facets).map_err(to_string)?;
@@ -2738,16 +4254,19 @@ async fn install_modrinth_project(
     project_id: String,
     game_version: String,
     loader: String,
+    project_type: Option<String>,
 ) -> Result<ModInstallResult, String> {
     let client = http_client()?;
+    let project_type = normalized_project_type(project_type.as_deref().unwrap_or("mod"));
+    let query_game_version = modrinth_game_version(&game_version);
     let mut query = Vec::new();
-    if !game_version.trim().is_empty() {
+    if !query_game_version.trim().is_empty() {
         query.push((
             "game_versions".to_string(),
-            serde_json::to_string(&vec![game_version.trim()]).map_err(to_string)?,
+            serde_json::to_string(&vec![query_game_version.trim()]).map_err(to_string)?,
         ));
     }
-    if !loader.trim().is_empty() {
+    if loader_applies_to_project_type(&project_type) && !loader.trim().is_empty() {
         query.push((
             "loaders".to_string(),
             serde_json::to_string(&vec![loader.trim()]).map_err(to_string)?,
@@ -2765,7 +4284,26 @@ async fn install_modrinth_project(
     if !versions_response.status().is_success() {
         return Err(versions_response.text().await.map_err(to_string)?);
     }
-    let versions = versions_response.json::<Value>().await.map_err(to_string)?;
+    let mut versions = versions_response.json::<Value>().await.map_err(to_string)?;
+    if versions.as_array().map(Vec::is_empty).unwrap_or(true) && loader_applies_to_project_type(&project_type) {
+        let mut fallback_query = Vec::new();
+        if !query_game_version.trim().is_empty() {
+            fallback_query.push((
+                "game_versions".to_string(),
+                serde_json::to_string(&vec![query_game_version.trim()]).map_err(to_string)?,
+            ));
+        }
+        fallback_query.push(("featured".to_string(), "false".to_string()));
+        let fallback_response = client
+            .get(format!("{MODRINTH_API}/project/{encoded_project}/version"))
+            .query(&fallback_query)
+            .send()
+            .await
+            .map_err(to_string)?;
+        if fallback_response.status().is_success() {
+            versions = fallback_response.json::<Value>().await.map_err(to_string)?;
+        }
+    }
     let version = versions
         .as_array()
         .and_then(|items| items.first())
@@ -2794,9 +4332,41 @@ async fn install_modrinth_project(
         .to_string();
     let sha1 = file.pointer("/hashes/sha1").and_then(Value::as_str);
 
-    let mods_dir = minecraft_root()?.join("mods");
-    fs::create_dir_all(&mods_dir).map_err(to_string)?;
-    let path = mods_dir.join(&file_name);
+    if project_type == "modpack" {
+        let cache_dir = launcher_root()?.join("cache").join("modpacks");
+        fs::create_dir_all(&cache_dir).map_err(to_string)?;
+        let pack_path = cache_dir.join(&file_name);
+        download_to_path(
+            &client,
+            vec![url.to_string()],
+            &pack_path,
+            sha1,
+            file.get("size").and_then(Value::as_i64),
+            false,
+        )
+        .await?;
+        let installed_dir = install_modrinth_modpack(&client, &pack_path, &game_version).await?;
+        return Ok(ModInstallResult {
+            project_id,
+            version_id: version
+                .get("id")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .to_string(),
+            file_name,
+            path: installed_dir.display().to_string(),
+            project_type,
+        });
+    }
+
+    let target_folder = project_type_target_folder(&project_type).unwrap_or("mods");
+    let target_dir = if find_version_json_path(game_version.trim())?.is_some() {
+        target_game_dir_for_version(game_version.trim())?.join(target_folder)
+    } else {
+        minecraft_root()?.join(target_folder)
+    };
+    fs::create_dir_all(&target_dir).map_err(to_string)?;
+    let path = target_dir.join(&file_name);
     download_to_path(
         &client,
         vec![url.to_string()],
@@ -2816,6 +4386,7 @@ async fn install_modrinth_project(
             .to_string(),
         file_name,
         path: path.display().to_string(),
+        project_type,
     })
 }
 
@@ -2825,8 +4396,12 @@ fn main() {
             get_data_paths,
             set_minecraft_root,
             choose_minecraft_root,
+            scan_java_installations,
+            recommend_memory,
+            choose_java_executable,
             get_version_manifest,
             list_installed_versions,
+            delete_installed_version,
             get_version_summary,
             download_version,
             begin_microsoft_device_login,

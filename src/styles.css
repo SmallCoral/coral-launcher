@@ -329,6 +329,10 @@ h2 {
   margin-bottom: 16px;
 }
 
+.input-label + .input-label {
+  margin-top: 16px;
+}
+
 .selected-version-strip {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -375,6 +379,12 @@ select {
   outline: none;
   color: #f6efe7;
   background: #151412;
+}
+
+input:disabled,
+select:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
 }
 
 input:focus,
@@ -424,6 +434,10 @@ select:focus {
 .progress-block {
   display: grid;
   gap: 12px;
+}
+
+.compact-label {
+  margin-bottom: 14px;
 }
 
 .progress-meter {
@@ -737,6 +751,77 @@ select:focus {
   grid-template-columns: 1fr 112px;
   gap: 10px;
   align-items: center;
+}
+
+.java-mode-row {
+  display: grid;
+  grid-template-columns: 1fr 40px 40px;
+  gap: 8px;
+  align-items: center;
+}
+
+.java-mode-row.two-actions {
+  grid-template-columns: 1fr 40px;
+}
+
+.java-mode-row .segmented button {
+  min-width: 0;
+}
+
+.memory-hint {
+  display: grid;
+  gap: 4px;
+  padding: 11px 12px;
+  border-radius: 8px;
+  color: #bdb4a9;
+  background: #181713;
+}
+
+.memory-hint strong {
+  color: #f4ede5;
+  font-size: 16px;
+}
+
+.memory-hint span {
+  overflow-wrap: anywhere;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.java-list {
+  display: grid;
+  gap: 8px;
+  max-height: 220px;
+  overflow: auto;
+}
+
+.java-row {
+  display: grid;
+  width: 100%;
+  min-height: 54px;
+  padding: 9px 11px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  color: #efe7dc;
+  text-align: left;
+  background: #181713;
+}
+
+.java-row:hover,
+.java-row.active {
+  border-color: rgba(255, 138, 115, 0.55);
+  background: #29251f;
+}
+
+.java-row strong,
+.java-row span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.java-row span {
+  color: #9f9588;
+  font-size: 12px;
 }
 
 input[type="range"] {
