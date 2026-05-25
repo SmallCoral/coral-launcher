@@ -192,6 +192,15 @@ struct MemoryRecommendation {
     reason: String,
 }
 
+#[derive(Debug, Serialize, Clone)]
+struct LoaderVersionOption {
+    loader: String,
+    version: String,
+    display_name: String,
+    recommended: bool,
+    stable: bool,
+}
+
 #[derive(Debug, Serialize)]
 struct ModInstallResult {
     project_id: String,
@@ -1016,6 +1025,31 @@ async fn fetch_json_from_urls<T: serde::de::DeserializeOwned>(
         }
     }
     Err(format!("所有下载源均失败：{}", errors.join("；")))
+}
+
+async fn fetch_text_from_urls(client: &Client, urls: Vec<String>) -> Result<String, String> {
+    let mut errors = Vec::new();
+    for url in urls.iter() {
+        for attempt in 1..=3 {
+            match client.get(url).send().await {
+                Ok(response) if response.status().is_success() => {
+                    return response.text().await.map_err(to_string);
+                }
+                Ok(response) => {
+                    let status = response.status();
+                    errors.push(format!("{url} 第 {attempt} 次请求失败: {status}"));
+                    if status.as_u16() == 403 || status.as_u16() == 404 {
+                        break;
+                    }
+                }
+                Err(error) => {
+                    errors.push(format!("{url} 第 {attempt} 次请求失败: {error}"));
+                }
+            }
+            tokio::time::sleep(Duration::from_millis(350 * attempt)).await;
+        }
+    }
+    Err(format!("所有文本源均失败：{}", errors.join("；")))
 }
 
 fn sha1_matches(path: &Path, expected: &str) -> Result<bool, String> {
@@ -2628,6 +2662,157 @@ fn loader_download_label(loader: &str) -> Option<&'static str> {
     }
 }
 
+async fn get_fabric_loader_versions(
+    client: &Client,
+    game_version: &str,
+) -> Result<Vec<LoaderVersionOption>, String> {
+    let versions = fetch_json_from_urls::<Value>(
+        client,
+        vec![format!("{FABRIC_META_API}/versions/loader/{game_version}")],
+    )
+    .await?;
+    let mut output = versions
+        .as_array()
+        .cloned()
+        .unwrap_or_default()
+        .into_iter()
+        .filter_map(|item| {
+            let version = item.pointer("/loader/version")?.as_str()?.to_string();
+            let stable = item
+                .pointer("/loader/stable")
+                .and_then(Value::as_bool)
+                .unwrap_or(true);
+            Some(LoaderVersionOption {
+                loader: "fabric".to_string(),
+                display_name: if stable {
+                    format!("Fabric {version}")
+                } else {
+                    format!("Fabric {version} beta")
+                },
+                recommended: false,
+                stable,
+                version,
+            })
+        })
+        .collect::<Vec<_>>();
+    if let Some(first) = output.first_mut() {
+        first.recommended = true;
+        first.display_name = format!("{} · 最新", first.display_name);
+    }
+    Ok(output)
+}
+
+fn parse_xml_versions(text: &str) -> Vec<String> {
+    let mut versions = Vec::new();
+    let mut rest = text;
+    while let Some(start) = rest.find("<version>") {
+        rest = &rest[start + "<version>".len()..];
+        let Some(end) = rest.find("</version>") else {
+            break;
+        };
+        let version = rest[..end].trim();
+        if !version.is_empty() {
+            versions.push(version.to_string());
+        }
+        rest = &rest[end + "</version>".len()..];
+    }
+    versions
+}
+
+async fn forge_promotions(client: &Client) -> Result<Value, String> {
+    fetch_json_from_urls::<Value>(
+        client,
+        vec![
+            FORGE_PROMOTIONS_URL.to_string(),
+            "https://bmclapi2.bangbang93.com/maven/net/minecraftforge/forge/promotions_slim.json"
+                .to_string(),
+        ],
+    )
+    .await
+}
+
+async fn get_forge_loader_versions(
+    client: &Client,
+    game_version: &str,
+) -> Result<Vec<LoaderVersionOption>, String> {
+    let metadata = fetch_text_from_urls(
+        client,
+        vec![
+            "https://maven.minecraftforge.net/net/minecraftforge/forge/maven-metadata.xml"
+                .to_string(),
+            "https://bmclapi2.bangbang93.com/maven/net/minecraftforge/forge/maven-metadata.xml"
+                .to_string(),
+        ],
+    )
+    .await?;
+    let prefix = format!("{game_version}-");
+    let mut versions = parse_xml_versions(&metadata)
+        .into_iter()
+        .filter_map(|artifact| artifact.strip_prefix(&prefix).map(ToOwned::to_owned))
+        .filter(|version| !version.trim().is_empty())
+        .collect::<Vec<_>>();
+    versions.sort_by(|left, right| compare_versions(right, left));
+    versions.dedup();
+
+    let promotions = forge_promotions(client).await.ok();
+    let recommended = promotions
+        .as_ref()
+        .and_then(|value| value.pointer(&format!("/promos/{game_version}-recommended")))
+        .and_then(Value::as_str)
+        .map(ToOwned::to_owned);
+    let latest = promotions
+        .as_ref()
+        .and_then(|value| value.pointer(&format!("/promos/{game_version}-latest")))
+        .and_then(Value::as_str)
+        .map(ToOwned::to_owned);
+
+    let mut output = versions
+        .into_iter()
+        .map(|version| {
+            let is_recommended = recommended.as_deref() == Some(version.as_str());
+            let is_latest = latest.as_deref() == Some(version.as_str());
+            let suffix = if is_recommended {
+                " · 推荐"
+            } else if is_latest {
+                " · 最新"
+            } else {
+                ""
+            };
+            LoaderVersionOption {
+                loader: "forge".to_string(),
+                display_name: format!("Forge {version}{suffix}"),
+                recommended: is_recommended || is_latest,
+                stable: true,
+                version,
+            }
+        })
+        .collect::<Vec<_>>();
+    output.sort_by(|left, right| {
+        right
+            .recommended
+            .cmp(&left.recommended)
+            .then_with(|| compare_versions(&right.version, &left.version))
+    });
+    Ok(output)
+}
+
+#[tauri::command]
+async fn get_loader_versions(
+    game_version: String,
+    loader: String,
+) -> Result<Vec<LoaderVersionOption>, String> {
+    let game_version = modrinth_game_version(&game_version);
+    if game_version.trim().is_empty() {
+        return Ok(Vec::new());
+    }
+    let client = http_client()?;
+    match loader.trim().to_ascii_lowercase().as_str() {
+        "fabric" => get_fabric_loader_versions(&client, &game_version).await,
+        "forge" => get_forge_loader_versions(&client, &game_version).await,
+        _ => Ok(Vec::new()),
+    }
+}
+
 async fn download_profile_libraries(
     app: &AppHandle,
     client: &Client,
@@ -2687,18 +2872,15 @@ async fn install_fabric_loader(
     app: &AppHandle,
     client: &Client,
     game_version: &str,
+    selected_loader_version: Option<&str>,
 ) -> Result<String, String> {
     emit_progress(app, "loader", 0, 3, "获取 Fabric Loader 列表");
-    let versions = fetch_json_from_urls::<Value>(
-        client,
-        vec![format!("{FABRIC_META_API}/versions/loader/{game_version}")],
-    )
-    .await?;
-    let loader_version = versions
-        .as_array()
-        .and_then(|items| items.first())
-        .and_then(|item| item.pointer("/loader/version"))
-        .and_then(Value::as_str)
+    let loader_versions = get_fabric_loader_versions(client, game_version).await?;
+    let loader_version = selected_loader_version
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(ToOwned::to_owned)
+        .or_else(|| loader_versions.first().map(|item| item.version.clone()))
         .ok_or_else(|| format!("Fabric 暂未提供 Minecraft {game_version} 的加载器"))?;
 
     emit_progress(
@@ -2757,26 +2939,40 @@ async fn install_forge_loader(
     client: &Client,
     game_version: &str,
     vanilla_json: &Value,
+    selected_forge_version: Option<&str>,
 ) -> Result<String, String> {
     emit_progress(app, "loader", 0, 4, "获取 Forge 版本信息");
-    let promotions = fetch_json_from_urls::<Value>(
-        client,
-        vec![
-            FORGE_PROMOTIONS_URL.to_string(),
-            "https://bmclapi2.bangbang93.com/maven/net/minecraftforge/forge/promotions_slim.json"
-                .to_string(),
-        ],
-    )
-    .await?;
-    let promos = promotions
-        .get("promos")
-        .and_then(Value::as_object)
-        .ok_or("Forge promotions_slim.json 缺少 promos")?;
-    let forge_version = promos
-        .get(&format!("{game_version}-recommended"))
-        .or_else(|| promos.get(&format!("{game_version}-latest")))
-        .and_then(Value::as_str)
-        .ok_or_else(|| format!("Forge 暂未提供 Minecraft {game_version} 的安装器"))?;
+    let selected_forge_version = selected_forge_version
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(ToOwned::to_owned);
+    let forge_version = if let Some(version) = selected_forge_version {
+        version
+    } else {
+        let promoted = if let Ok(promotions) = forge_promotions(client).await {
+            promotions
+                .get("promos")
+                .and_then(Value::as_object)
+                .and_then(|promos| {
+                    promos
+                        .get(&format!("{game_version}-recommended"))
+                        .or_else(|| promos.get(&format!("{game_version}-latest")))
+                        .and_then(Value::as_str)
+                })
+                .map(ToOwned::to_owned)
+        } else {
+            None
+        };
+        if let Some(version) = promoted {
+            version
+        } else {
+            get_forge_loader_versions(client, game_version)
+                .await?
+                .first()
+                .map(|item| item.version.clone())
+                .ok_or_else(|| format!("Forge 暂未提供 Minecraft {game_version} 的安装器"))?
+        }
+    };
 
     let artifact = format!("{game_version}-{forge_version}");
     let installer_name = format!("forge-{artifact}-installer.jar");
@@ -2837,7 +3033,7 @@ async fn install_forge_loader(
                     .as_deref()
                     .map(|parent| parent == game_version)
                     .unwrap_or_else(|| version.id.contains(game_version))
-                && version.id.contains(forge_version)
+                && version.id.contains(&forge_version)
         })
         .map(|version| version.id.clone())
         .unwrap_or_else(|| format!("{game_version}-forge-{forge_version}"));
@@ -2857,6 +3053,7 @@ async fn download_version(
     version_id: String,
     include_assets: bool,
     loader: Option<String>,
+    loader_version: Option<String>,
 ) -> Result<(), String> {
     let client = http_client()?;
     let root = minecraft_root()?;
@@ -3042,116 +3239,111 @@ async fn download_version(
     }
 
     if include_assets {
-        let Some(asset_index_value) = version_json.get("assetIndex") else {
-            emit_progress(&app, "done", 1, 1, "版本下载完成");
-            return Ok(());
-        };
-        let Some(asset_index_url) = asset_index_value.get("url").and_then(Value::as_str) else {
-            emit_progress(&app, "done", 1, 1, "版本下载完成");
-            return Ok(());
-        };
+        if let Some(asset_index_value) = version_json.get("assetIndex") {
+            if let Some(asset_index_url) = asset_index_value.get("url").and_then(Value::as_str) {
+                let asset_index_id = asset_index_value
+                    .get("id")
+                    .and_then(Value::as_str)
+                    .or_else(|| version_json.get("assets").and_then(Value::as_str))
+                    .unwrap_or(&version_id);
+                emit_progress(&app, "assets", 0, 1, "下载资源索引");
+                let indexes_dir = root.join("assets").join("indexes");
+                fs::create_dir_all(&indexes_dir).map_err(to_string)?;
+                let asset_index_path = indexes_dir.join(format!("{asset_index_id}.json"));
+                download_to_path(
+                    &client,
+                    mirror_urls(asset_index_url),
+                    &asset_index_path,
+                    asset_index_value.get("sha1").and_then(Value::as_str),
+                    asset_index_value.get("size").and_then(Value::as_i64),
+                    true,
+                )
+                .await?;
+                let asset_index = serde_json::from_str::<Value>(
+                    &fs::read_to_string(&asset_index_path).map_err(to_string)?,
+                )
+                .map_err(to_string)?;
 
-        let asset_index_id = asset_index_value
-            .get("id")
-            .and_then(Value::as_str)
-            .or_else(|| version_json.get("assets").and_then(Value::as_str))
-            .unwrap_or(&version_id);
-        emit_progress(&app, "assets", 0, 1, "下载资源索引");
-        let indexes_dir = root.join("assets").join("indexes");
-        fs::create_dir_all(&indexes_dir).map_err(to_string)?;
-        let asset_index_path = indexes_dir.join(format!("{asset_index_id}.json"));
-        download_to_path(
-            &client,
-            mirror_urls(asset_index_url),
-            &asset_index_path,
-            asset_index_value.get("sha1").and_then(Value::as_str),
-            asset_index_value.get("size").and_then(Value::as_i64),
-            true,
-        )
-        .await?;
-        let asset_index = serde_json::from_str::<Value>(
-            &fs::read_to_string(&asset_index_path).map_err(to_string)?,
-        )
-        .map_err(to_string)?;
-
-        let objects = asset_index
-            .get("objects")
-            .and_then(Value::as_object)
-            .cloned()
-            .unwrap_or_default();
-        let mut asset_downloads = Vec::new();
-        let mut asset_paths = HashSet::new();
-        for (name, object) in objects.into_iter() {
-            let hash = object
-                .get("hash")
-                .and_then(Value::as_str)
-                .ok_or_else(|| format!("资源缺少 hash: {name}"))?;
-            if hash.len() < 2 {
-                return Err(format!("资源 hash 无效: {name}"));
-            }
-            let prefix = &hash[0..2];
-            let url = format!("https://resources.download.minecraft.net/{prefix}/{hash}");
-            let path = root.join("assets").join("objects").join(prefix).join(hash);
-            if asset_paths.insert(path.clone()) {
-                asset_downloads.push(DownloadFile {
-                    urls: mirror_urls(&url),
-                    path,
-                    sha1: Some(hash.to_string()),
-                    size: object.get("size").and_then(Value::as_i64),
-                    label: name,
-                    is_json: false,
-                });
-            }
-        }
-        let total_assets = asset_downloads.len();
-        let done = Arc::new(AtomicUsize::new(0));
-        let app_for_assets = app.clone();
-        let client_for_assets = client.clone();
-
-        let asset_results = stream::iter(asset_downloads.into_iter())
-            .map(move |file| {
-                let client = client_for_assets.clone();
-                let app = app_for_assets.clone();
-                let done = done.clone();
-                async move {
-                    let result = download_to_path(
-                        &client,
-                        file.urls,
-                        &file.path,
-                        file.sha1.as_deref(),
-                        file.size,
-                        file.is_json,
-                    )
-                    .await;
-                    let current = done.fetch_add(1, Ordering::SeqCst) + 1;
-                    let label = if result.is_ok() {
-                        file.label.clone()
-                    } else {
-                        format!("资源下载失败: {}", file.label)
-                    };
-                    emit_progress(&app, "assets", current, total_assets.max(1), label);
-                    result.map_err(|error| format!("{}: {error}", file.label))
-                }
-            })
-            .buffer_unordered(24)
-            .collect::<Vec<_>>()
-            .await;
-
-        let failed_assets = asset_results
-            .into_iter()
-            .filter_map(Result::err)
-            .collect::<Vec<_>>();
-        if !failed_assets.is_empty() {
-            return Err(format!(
-                "{} 个资源下载失败：{}",
-                failed_assets.len(),
-                failed_assets
-                    .iter()
-                    .take(3)
+                let objects = asset_index
+                    .get("objects")
+                    .and_then(Value::as_object)
                     .cloned()
+                    .unwrap_or_default();
+                let mut asset_downloads = Vec::new();
+                let mut asset_paths = HashSet::new();
+                for (name, object) in objects.into_iter() {
+                    let hash = object
+                        .get("hash")
+                        .and_then(Value::as_str)
+                        .ok_or_else(|| format!("资源缺少 hash: {name}"))?;
+                    if hash.len() < 2 {
+                        return Err(format!("资源 hash 无效: {name}"));
+                    }
+                    let prefix = &hash[0..2];
+                    let url = format!("https://resources.download.minecraft.net/{prefix}/{hash}");
+                    let path = root.join("assets").join("objects").join(prefix).join(hash);
+                    if asset_paths.insert(path.clone()) {
+                        asset_downloads.push(DownloadFile {
+                            urls: mirror_urls(&url),
+                            path,
+                            sha1: Some(hash.to_string()),
+                            size: object.get("size").and_then(Value::as_i64),
+                            label: name,
+                            is_json: false,
+                        });
+                    }
+                }
+                let total_assets = asset_downloads.len();
+                let done = Arc::new(AtomicUsize::new(0));
+                let app_for_assets = app.clone();
+                let client_for_assets = client.clone();
+
+                let asset_results = stream::iter(asset_downloads.into_iter())
+                    .map(move |file| {
+                        let client = client_for_assets.clone();
+                        let app = app_for_assets.clone();
+                        let done = done.clone();
+                        async move {
+                            let result = download_to_path(
+                                &client,
+                                file.urls,
+                                &file.path,
+                                file.sha1.as_deref(),
+                                file.size,
+                                file.is_json,
+                            )
+                            .await;
+                            let current = done.fetch_add(1, Ordering::SeqCst) + 1;
+                            let label = if result.is_ok() {
+                                file.label.clone()
+                            } else {
+                                format!("资源下载失败: {}", file.label)
+                            };
+                            emit_progress(&app, "assets", current, total_assets.max(1), label);
+                            result.map_err(|error| format!("{}: {error}", file.label))
+                        }
+                    })
+                    .buffer_unordered(24)
                     .collect::<Vec<_>>()
-                    .join("; ")
-            ));
+                    .await;
+
+                let failed_assets = asset_results
+                    .into_iter()
+                    .filter_map(Result::err)
+                    .collect::<Vec<_>>();
+                if !failed_assets.is_empty() {
+                    return Err(format!(
+                        "{} 个资源下载失败：{}",
+                        failed_assets.len(),
+                        failed_assets
+                            .iter()
+                            .take(3)
+                            .cloned()
+                            .collect::<Vec<_>>()
+                            .join("; ")
+                    ));
+                }
+            }
         }
     }
 
@@ -3162,7 +3354,13 @@ async fn download_version(
     {
         match loader_name.as_str() {
             "Fabric" => {
-                let profile_id = install_fabric_loader(&app, &client, &version_id).await?;
+                let profile_id = install_fabric_loader(
+                    &app,
+                    &client,
+                    &version_id,
+                    loader_version.as_deref(),
+                )
+                .await?;
                 emit_progress(
                     &app,
                     "done",
@@ -3172,7 +3370,14 @@ async fn download_version(
                 );
             }
             "Forge" => {
-                let profile_id = install_forge_loader(&app, &client, &version_id, &version_json).await?;
+                let profile_id = install_forge_loader(
+                    &app,
+                    &client,
+                    &version_id,
+                    &version_json,
+                    loader_version.as_deref(),
+                )
+                .await?;
                 emit_progress(
                     &app,
                     "done",
@@ -4068,6 +4273,43 @@ fn target_game_dir_for_version(version_id: &str) -> Result<PathBuf, String> {
     minecraft_root()
 }
 
+fn default_resource_target_dir(game_version: &str, project_type: &str) -> Result<PathBuf, String> {
+    let project_type = normalized_project_type(project_type);
+    if project_type == "modpack" {
+        return target_game_dir_for_version(game_version);
+    }
+    let target_folder = project_type_target_folder(&project_type).unwrap_or("mods");
+    if find_version_json_path(game_version.trim())?.is_some() {
+        Ok(target_game_dir_for_version(game_version.trim())?.join(target_folder))
+    } else {
+        Ok(minecraft_root()?.join(target_folder))
+    }
+}
+
+#[tauri::command]
+async fn get_resource_default_target_folder(
+    game_version: String,
+    project_type: String,
+) -> Result<String, String> {
+    Ok(default_resource_target_dir(&game_version, &project_type)?
+        .display()
+        .to_string())
+}
+
+#[tauri::command]
+async fn choose_resource_target_folder(
+    game_version: String,
+    project_type: String,
+) -> Result<Option<String>, String> {
+    let default_dir = default_resource_target_dir(&game_version, &project_type)?;
+    fs::create_dir_all(&default_dir).map_err(to_string)?;
+    let picked = rfd::FileDialog::new()
+        .set_title("选择下载到的文件夹")
+        .set_directory(default_dir)
+        .pick_folder();
+    Ok(picked.map(|path| path.display().to_string()))
+}
+
 fn safe_relative_path(relative: &str) -> Result<PathBuf, String> {
     let mut path = PathBuf::new();
     for part in relative.replace('\\', "/").split('/') {
@@ -4092,7 +4334,14 @@ async fn install_modrinth_modpack(
     pack_path: &Path,
     game_version: &str,
 ) -> Result<PathBuf, String> {
-    let game_dir = target_game_dir_for_version(game_version)?;
+    install_modrinth_modpack_to_dir(client, pack_path, target_game_dir_for_version(game_version)?).await
+}
+
+async fn install_modrinth_modpack_to_dir(
+    client: &Client,
+    pack_path: &Path,
+    game_dir: PathBuf,
+) -> Result<PathBuf, String> {
     fs::create_dir_all(&game_dir).map_err(to_string)?;
 
     let file = fs::File::open(pack_path).map_err(to_string)?;
@@ -4249,15 +4498,14 @@ async fn search_modrinth(
     response.json::<Value>().await.map_err(to_string)
 }
 
-#[tauri::command]
-async fn install_modrinth_project(
+async fn fetch_modrinth_project_versions(
+    client: &Client,
     project_id: String,
     game_version: String,
     loader: String,
-    project_type: Option<String>,
-) -> Result<ModInstallResult, String> {
-    let client = http_client()?;
-    let project_type = normalized_project_type(project_type.as_deref().unwrap_or("mod"));
+    project_type: String,
+) -> Result<Value, String> {
+    let project_type = normalized_project_type(&project_type);
     let query_game_version = modrinth_game_version(&game_version);
     let mut query = Vec::new();
     if !query_game_version.trim().is_empty() {
@@ -4285,7 +4533,9 @@ async fn install_modrinth_project(
         return Err(versions_response.text().await.map_err(to_string)?);
     }
     let mut versions = versions_response.json::<Value>().await.map_err(to_string)?;
-    if versions.as_array().map(Vec::is_empty).unwrap_or(true) && loader_applies_to_project_type(&project_type) {
+    if versions.as_array().map(Vec::is_empty).unwrap_or(true)
+        && loader_applies_to_project_type(&project_type)
+    {
         let mut fallback_query = Vec::new();
         if !query_game_version.trim().is_empty() {
             fallback_query.push((
@@ -4304,15 +4554,15 @@ async fn install_modrinth_project(
             versions = fallback_response.json::<Value>().await.map_err(to_string)?;
         }
     }
-    let version = versions
-        .as_array()
-        .and_then(|items| items.first())
-        .ok_or("没有找到匹配的 Modrinth 版本")?;
+    Ok(versions)
+}
+
+fn primary_modrinth_file(version: &Value) -> Result<&Value, String> {
     let files = version
         .get("files")
         .and_then(Value::as_array)
         .ok_or("Modrinth 版本缺少文件")?;
-    let file = files
+    files
         .iter()
         .find(|file| {
             file.get("primary")
@@ -4320,7 +4570,19 @@ async fn install_modrinth_project(
                 .unwrap_or(false)
         })
         .or_else(|| files.first())
-        .ok_or("Modrinth 版本没有可下载文件")?;
+        .ok_or_else(|| "Modrinth 版本没有可下载文件".to_string())
+}
+
+async fn install_modrinth_version_value(
+    client: &Client,
+    version: &Value,
+    project_id: String,
+    game_version: String,
+    project_type: String,
+    target_dir: Option<String>,
+) -> Result<ModInstallResult, String> {
+    let project_type = normalized_project_type(&project_type);
+    let file = primary_modrinth_file(version)?;
     let url = file
         .get("url")
         .and_then(Value::as_str)
@@ -4337,7 +4599,7 @@ async fn install_modrinth_project(
         fs::create_dir_all(&cache_dir).map_err(to_string)?;
         let pack_path = cache_dir.join(&file_name);
         download_to_path(
-            &client,
+            client,
             vec![url.to_string()],
             &pack_path,
             sha1,
@@ -4345,7 +4607,15 @@ async fn install_modrinth_project(
             false,
         )
         .await?;
-        let installed_dir = install_modrinth_modpack(&client, &pack_path, &game_version).await?;
+        let installed_dir = if let Some(target_dir) = target_dir
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+        {
+            install_modrinth_modpack_to_dir(client, &pack_path, PathBuf::from(target_dir)).await?
+        } else {
+            install_modrinth_modpack(client, &pack_path, &game_version).await?
+        };
         return Ok(ModInstallResult {
             project_id,
             version_id: version
@@ -4359,16 +4629,16 @@ async fn install_modrinth_project(
         });
     }
 
-    let target_folder = project_type_target_folder(&project_type).unwrap_or("mods");
-    let target_dir = if find_version_json_path(game_version.trim())?.is_some() {
-        target_game_dir_for_version(game_version.trim())?.join(target_folder)
-    } else {
-        minecraft_root()?.join(target_folder)
-    };
+    let target_dir = target_dir
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(PathBuf::from)
+        .unwrap_or(default_resource_target_dir(&game_version, &project_type)?);
     fs::create_dir_all(&target_dir).map_err(to_string)?;
     let path = target_dir.join(&file_name);
     download_to_path(
-        &client,
+        client,
         vec![url.to_string()],
         &path,
         sha1,
@@ -4390,6 +4660,79 @@ async fn install_modrinth_project(
     })
 }
 
+#[tauri::command]
+async fn get_modrinth_project_versions(
+    project_id: String,
+    game_version: String,
+    loader: String,
+    project_type: String,
+) -> Result<Value, String> {
+    let client = http_client()?;
+    fetch_modrinth_project_versions(&client, project_id, game_version, loader, project_type).await
+}
+
+#[tauri::command]
+async fn install_modrinth_project_version(
+    project_id: String,
+    version_id: String,
+    game_version: String,
+    project_type: String,
+    target_dir: Option<String>,
+) -> Result<ModInstallResult, String> {
+    let client = http_client()?;
+    let encoded_version = urlencoding::encode(version_id.trim());
+    let response = client
+        .get(format!("{MODRINTH_API}/version/{encoded_version}"))
+        .send()
+        .await
+        .map_err(to_string)?;
+    if !response.status().is_success() {
+        return Err(response.text().await.map_err(to_string)?);
+    }
+    let version = response.json::<Value>().await.map_err(to_string)?;
+    install_modrinth_version_value(
+        &client,
+        &version,
+        project_id,
+        game_version,
+        project_type,
+        target_dir,
+    )
+    .await
+}
+
+#[tauri::command]
+async fn install_modrinth_project(
+    project_id: String,
+    game_version: String,
+    loader: String,
+    project_type: Option<String>,
+) -> Result<ModInstallResult, String> {
+    let client = http_client()?;
+    let project_type = normalized_project_type(project_type.as_deref().unwrap_or("mod"));
+    let versions = fetch_modrinth_project_versions(
+        &client,
+        project_id.clone(),
+        game_version.clone(),
+        loader,
+        project_type.clone(),
+    )
+    .await?;
+    let version = versions
+        .as_array()
+        .and_then(|items| items.first())
+        .ok_or("没有找到匹配的 Modrinth 版本")?;
+    install_modrinth_version_value(
+        &client,
+        version,
+        project_id,
+        game_version,
+        project_type,
+        None,
+    )
+    .await
+}
+
 fn main() {
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
@@ -4403,6 +4746,7 @@ fn main() {
             list_installed_versions,
             delete_installed_version,
             get_version_summary,
+            get_loader_versions,
             download_version,
             begin_microsoft_device_login,
             poll_microsoft_device_login,
@@ -4413,7 +4757,11 @@ fn main() {
             launch_game,
             preview_launch_command,
             search_modrinth,
-            install_modrinth_project
+            get_modrinth_project_versions,
+            get_resource_default_target_folder,
+            choose_resource_target_folder,
+            install_modrinth_project,
+            install_modrinth_project_version
         ])
         .run(tauri::generate_context!())
         .expect("error while running Coral Launcher");

@@ -152,6 +152,39 @@ interface ModrinthSearchResponse {
   total_hits: number;
 }
 
+interface LoaderVersionOption {
+  loader: string;
+  version: string;
+  display_name: string;
+  recommended: boolean;
+  stable: boolean;
+}
+
+interface ModrinthFile {
+  filename: string;
+  size?: number;
+  primary?: boolean;
+}
+
+interface ModrinthVersion {
+  id: string;
+  name: string;
+  version_number: string;
+  game_versions?: string[];
+  loaders?: string[];
+  date_published?: string;
+  downloads?: number;
+  files?: ModrinthFile[];
+}
+
+interface ModVersionDialog {
+  project: ModrinthHit;
+  projectType: ModProjectType;
+  versions: ModrinthVersion[];
+  selectedVersionId: string;
+  defaultTarget: string;
+}
+
 interface ModInstallResult {
   project_id: string;
   version_id: string;
@@ -176,6 +209,7 @@ interface SettingsState {
   maxMemoryMb: number;
   loader: string;
   downloadLoader: "none" | "fabric" | "forge";
+  downloadLoaderVersion: string;
   lastVersionId?: string;
 }
 
@@ -185,7 +219,8 @@ const DEFAULT_SETTINGS: SettingsState = {
   memoryMode: "auto",
   maxMemoryMb: 4096,
   loader: "fabric",
-  downloadLoader: "none"
+  downloadLoader: "none",
+  downloadLoaderVersion: ""
 };
 
 const VERSION_MANIFEST_URL = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
@@ -221,7 +256,8 @@ function readSettings(): SettingsState {
       javaMode: parsed.javaMode === "manual" ? "manual" : "auto",
       javaPath: typeof parsed.javaPath === "string" ? parsed.javaPath : "",
       memoryMode: parsed.memoryMode === "manual" ? "manual" : "auto",
-      downloadLoader: ["fabric", "forge", "none"].includes(parsed.downloadLoader) ? parsed.downloadLoader : "none"
+      downloadLoader: ["fabric", "forge", "none"].includes(parsed.downloadLoader) ? parsed.downloadLoader : "none",
+      downloadLoaderVersion: typeof parsed.downloadLoaderVersion === "string" ? parsed.downloadLoaderVersion : ""
     };
   } catch {
     return DEFAULT_SETTINGS;
@@ -254,6 +290,18 @@ function modProjectLabel(type: ModProjectType) {
 
 function modProjectTarget(type: ModProjectType) {
   return type === "shader" ? "shaderpacks" : type === "resourcepack" ? "resourcepacks" : type === "modpack" ? "当前版本目录" : "mods";
+}
+
+function downloadLoaderLabel(loader: SettingsState["downloadLoader"]) {
+  return loader === "fabric" ? "Fabric" : loader === "forge" ? "Forge" : "原版";
+}
+
+function modrinthVersionMeta(version?: ModrinthVersion) {
+  if (!version) return "未选择版本";
+  const gameVersions = version.game_versions?.slice(0, 4).join(", ") || "未知游戏版本";
+  const loaders = version.loaders?.length ? ` · ${version.loaders.join(", ")}` : "";
+  const file = version.files?.find((item) => item.primary) ?? version.files?.[0];
+  return `${gameVersions}${loaders}${file ? ` · ${file.filename}` : ""}`;
 }
 
 function formatProfileExpiry(profile: MinecraftProfile) {
@@ -313,10 +361,13 @@ function App() {
   const [javaInstallations, setJavaInstallations] = useState<JavaInstallation[]>([]);
   const [offlineName, setOfflineName] = useState("Player");
   const [brandLogoIndex, setBrandLogoIndex] = useState(0);
-  const [modQuery, setModQuery] = useState("sodium");
+  const [loaderVersions, setLoaderVersions] = useState<LoaderVersionOption[]>([]);
+  const [modQuery, setModQuery] = useState("");
   const [modProjectType, setModProjectType] = useState<ModProjectType>("mod");
+  const [modGameVersion, setModGameVersion] = useState("");
   const [modResults, setModResults] = useState<ModrinthHit[]>([]);
   const [modTotal, setModTotal] = useState(0);
+  const [modVersionDialog, setModVersionDialog] = useState<ModVersionDialog | null>(null);
   const [lastInstall, setLastInstall] = useState<ModInstallResult | null>(null);
   const [memoryRecommendation, setMemoryRecommendation] = useState<MemoryRecommendation | null>(null);
   const [launchPreview, setLaunchPreview] = useState("");
@@ -337,6 +388,40 @@ function App() {
   useEffect(() => {
     refreshMemoryRecommendation(selectedVersion, true);
   }, [selectedVersion, installed]);
+
+  useEffect(() => {
+    if (!selectedVersion || settings.downloadLoader === "none") {
+      setLoaderVersions([]);
+      if (settings.downloadLoaderVersion) {
+        setSettings((current) => ({ ...current, downloadLoaderVersion: "" }));
+      }
+      return;
+    }
+    let cancelled = false;
+    setLoaderVersions([]);
+    if (!isTauriRuntime()) return;
+    invoke<LoaderVersionOption[]>("get_loader_versions", {
+      gameVersion: selectedVersion,
+      loader: settings.downloadLoader
+    })
+      .then((options) => {
+        if (cancelled) return;
+        setLoaderVersions(options);
+        setSettings((current) => {
+          if (current.downloadLoader !== settings.downloadLoader) return current;
+          if (options.some((item) => item.version === current.downloadLoaderVersion)) return current;
+          return { ...current, downloadLoaderVersion: options[0]?.version ?? "" };
+        });
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setStatus(`加载器版本读取失败：${String(error)}`);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedVersion, settings.downloadLoader]);
 
   useEffect(() => {
     if (!isTauriRuntime()) return;
@@ -387,6 +472,11 @@ function App() {
     () => Boolean(selectedInstalledInfo?.has_client && selectedInstalledInfo?.has_manifest),
     [selectedInstalledInfo]
   );
+
+  useEffect(() => {
+    const baseVersion = selectedInstalledInfo?.inherits_from || selectedVersion;
+    setModGameVersion(baseVersion || "");
+  }, [selectedInstalledInfo?.inherits_from, selectedVersion]);
 
   const selectedJavaInfo = useMemo(
     () => javaInstallations.find((java) => java.path === settings.javaPath),
@@ -677,13 +767,14 @@ function App() {
       await invoke("download_version", {
         versionId: selectedVersion,
         includeAssets: true,
-        loader: settings.downloadLoader
+        loader: settings.downloadLoader,
+        loaderVersion: settings.downloadLoaderVersion
       });
       await refreshInstalled();
       setStatus(
         settings.downloadLoader === "none"
           ? `${selectedVersion} 已下载完成`
-          : `${selectedVersion} 已下载完成，并附加安装 ${settings.downloadLoader}`
+          : `${selectedVersion} 已下载完成，并附加安装 ${downloadLoaderLabel(settings.downloadLoader)} ${settings.downloadLoaderVersion || "最新版本"}`
       );
     } catch (error) {
       setStatus(`下载失败：${String(error)}`);
@@ -864,10 +955,11 @@ function App() {
   async function searchMods() {
     setBusy("mods");
     try {
+      const targetGameVersion = modGameVersion || selectedInstalledInfo?.inherits_from || selectedVersion;
       const response = isTauriRuntime()
         ? await invoke<ModrinthSearchResponse>("search_modrinth", {
             query: modQuery,
-            gameVersion: selectedVersion,
+            gameVersion: targetGameVersion,
             loader: settings.loader,
             projectType: modProjectType,
             limit: 24
@@ -877,7 +969,7 @@ function App() {
               query: modQuery,
               facets: JSON.stringify([
                 [`project_type:${modProjectType}`],
-                ...(selectedVersion ? [[`versions:${selectedInstalledInfo?.inherits_from || selectedVersion}`]] : []),
+                ...(targetGameVersion ? [[`versions:${targetGameVersion}`]] : []),
                 ...(settings.loader && (modProjectType === "mod" || modProjectType === "modpack") ? [[`categories:${settings.loader}`]] : [])
               ]),
               limit: "24",
@@ -894,23 +986,82 @@ function App() {
     }
   }
 
-  async function installMod(projectId: string) {
+  async function openModVersionPicker(project: ModrinthHit) {
     if (!isTauriRuntime()) {
-      setStatus("模组安装需要在 Tauri 桌面窗口中运行");
+      setStatus(`${modProjectLabel(modProjectType)}安装需要在 Tauri 桌面窗口中运行`);
       return;
     }
-    setBusy(`mod-${projectId}`);
+    if (!selectedVersion) {
+      setStatus("请先选择一个游戏版本");
+      return;
+    }
+    setBusy(`mod-${project.project_id}`);
     try {
-      const result = await invoke<ModInstallResult>("install_modrinth_project", {
-        projectId,
-        gameVersion: selectedVersion,
-        loader: settings.loader,
-        projectType: modProjectType
+      const targetGameVersion = modGameVersion || selectedInstalledInfo?.inherits_from || selectedVersion;
+      const [versions, defaultTarget] = await Promise.all([
+        invoke<ModrinthVersion[]>("get_modrinth_project_versions", {
+          projectId: project.project_id,
+          gameVersion: targetGameVersion,
+          loader: settings.loader,
+          projectType: modProjectType
+        }),
+        invoke<string>("get_resource_default_target_folder", {
+          gameVersion: selectedVersion,
+          projectType: modProjectType
+        })
+      ]);
+      if (!versions.length) {
+        setStatus(`没有找到适配 ${targetGameVersion} 的${modProjectLabel(modProjectType)}版本`);
+        return;
+      }
+      setModVersionDialog({
+        project,
+        projectType: modProjectType,
+        versions,
+        selectedVersionId: versions[0].id,
+        defaultTarget
+      });
+      setStatus(`已读取 ${project.title} 的 ${versions.length} 个可用版本`);
+    } catch (error) {
+      setStatus(`读取${modProjectLabel(modProjectType)}版本失败：${String(error)}`);
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function installSelectedModrinthVersion(useFolderPicker: boolean) {
+    if (!modVersionDialog || !modVersionDialog.selectedVersionId) return;
+    if (!isTauriRuntime()) {
+      setStatus(`${modProjectLabel(modVersionDialog.projectType)}安装需要在 Tauri 桌面窗口中运行`);
+      return;
+    }
+    setBusy(`mod-install-${modVersionDialog.project.project_id}`);
+    try {
+      let targetDir = modVersionDialog.defaultTarget;
+      const targetGameVersion = modGameVersion || selectedInstalledInfo?.inherits_from || selectedVersion;
+      if (useFolderPicker) {
+        const picked = await invoke<string | null>("choose_resource_target_folder", {
+          gameVersion: selectedVersion,
+          projectType: modVersionDialog.projectType
+        });
+        if (!picked) {
+          setStatus("已取消选择下载文件夹");
+          return;
+        }
+        targetDir = picked;
+      }
+      const result = await invoke<ModInstallResult>("install_modrinth_project_version", {
+        projectId: modVersionDialog.project.project_id,
+        versionId: modVersionDialog.selectedVersionId,
+        gameVersion: targetGameVersion,
+        projectType: modVersionDialog.projectType,
+        targetDir
       });
       setLastInstall(result);
-      setStatus(`已安装 ${modProjectLabel(modProjectType)}：${result.file_name}`);
+      setStatus(`已安装 ${modProjectLabel(modVersionDialog.projectType)}：${result.file_name}`);
+      setModVersionDialog(null);
     } catch (error) {
-      setStatus(`模组安装失败：${String(error)}`);
+      setStatus(`${modProjectLabel(modVersionDialog.projectType)}安装失败：${String(error)}`);
     } finally {
       setBusy("");
     }
@@ -925,6 +1076,57 @@ function App() {
     : selectedEntry
       ? `${versionType(selectedEntry)} · 尚未安装`
       : "请到版本页选择或下载";
+  const selectedLoaderVersion = loaderVersions.find((item) => item.version === settings.downloadLoaderVersion);
+  const selectedModrinthVersion = modVersionDialog?.versions.find((item) => item.id === modVersionDialog.selectedVersionId);
+  const modVersionInstallBusy = modVersionDialog ? busy === `mod-install-${modVersionDialog.project.project_id}` : false;
+  const targetModGameVersion = modGameVersion || selectedInstalledInfo?.inherits_from || selectedVersion || latestRelease;
+
+  const downloadLoaderPicker = (
+    <div className="loader-picker">
+      <div className="loader-picker-heading">
+        <span>下载时附加加载器</span>
+        <strong>
+          {settings.downloadLoader === "none"
+            ? "仅原版"
+            : `${downloadLoaderLabel(settings.downloadLoader)} ${selectedLoaderVersion?.version || settings.downloadLoaderVersion || "自动"}`}
+        </strong>
+      </div>
+      <div className="segmented loader-segmented">
+        {(["none", "fabric", "forge"] as SettingsState["downloadLoader"][]).map((loader) => (
+          <button
+            key={loader}
+            className={settings.downloadLoader === loader ? "active" : ""}
+            onClick={() =>
+              setSettings((current) => ({
+                ...current,
+                downloadLoader: loader,
+                downloadLoaderVersion: loader === "none" || current.downloadLoader !== loader ? "" : current.downloadLoaderVersion
+              }))
+            }
+          >
+            {loader === "none" ? "原版" : downloadLoaderLabel(loader)}
+          </button>
+        ))}
+      </div>
+      {settings.downloadLoader !== "none" && (
+        <label className="input-label compact-label">
+          加载器版本
+          <select
+            value={settings.downloadLoaderVersion}
+            onChange={(event) => setSettings({ ...settings, downloadLoaderVersion: event.target.value })}
+          >
+            <option value="">自动选择最新可用版本</option>
+            {loaderVersions.map((option) => (
+              <option key={`${option.loader}-${option.version}`} value={option.version}>
+                {option.display_name}
+                {option.recommended ? " · 推荐" : ""}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+    </div>
+  );
 
   return (
     <div className="app-shell">
@@ -1080,19 +1282,7 @@ function App() {
                 </div>
                 <Download size={20} />
               </div>
-              <label className="input-label compact-label">
-                附加加载器
-                <select
-                  value={settings.downloadLoader}
-                  onChange={(event) =>
-                    setSettings({ ...settings, downloadLoader: event.target.value as SettingsState["downloadLoader"] })
-                  }
-                >
-                  <option value="none">仅下载原版</option>
-                  <option value="fabric">原版 + Fabric</option>
-                  <option value="forge">原版 + Forge</option>
-                </select>
-              </label>
+              {downloadLoaderPicker}
               <div className="progress-block">
                 <div className="progress-meter">
                   <span style={{ width: `${progressPercent}%` }} />
@@ -1221,6 +1411,7 @@ function App() {
               ) : (
                 <p className="muted">选择版本后会显示 main class、Java 需求、资源索引和依赖数量。</p>
               )}
+              {downloadLoaderPicker}
               <div className="action-row">
                 <button className="primary-action" onClick={() => setActiveTab("play")} disabled={!selectedVersion}>
                   <Play size={18} />
@@ -1264,6 +1455,21 @@ function App() {
                 />
               </div>
               <select
+                className="mod-version-select"
+                value={modGameVersion}
+                onChange={(event) => setModGameVersion(event.target.value)}
+                title="目标 Minecraft 版本"
+              >
+                <option value={selectedInstalledInfo?.inherits_from || selectedVersion || latestRelease}>
+                  当前版本 {selectedInstalledInfo?.inherits_from || selectedVersion || latestRelease}
+                </option>
+                {manifest?.versions.slice(0, 160).map((version) => (
+                  <option key={`mod-version-${version.id}`} value={version.id}>
+                    {version.id}
+                  </option>
+                ))}
+              </select>
+              <select
                 value={settings.loader}
                 disabled={modProjectType === "shader" || modProjectType === "resourcepack"}
                 onChange={(event) => setSettings({ ...settings, loader: event.target.value })}
@@ -1282,7 +1488,7 @@ function App() {
             <div className="mods-summary">
               <strong>{modTotal ? `${modTotal} 个${modProjectLabel(modProjectType)}结果` : "Modrinth 社区"}</strong>
               <span>
-                目标版本 {selectedVersion || latestRelease}，
+                目标版本 {targetModGameVersion}，
                 {modProjectType === "mod" || modProjectType === "modpack" ? `加载器 ${settings.loader}，` : ""}
                 安装到 {modProjectTarget(modProjectType)}
               </span>
@@ -1300,8 +1506,8 @@ function App() {
                   </div>
                   <button
                     className="icon-button"
-                    onClick={() => installMod(mod.project_id)}
-                    title="安装匹配版本"
+                    onClick={() => openModVersionPicker(mod)}
+                    title="选择版本并安装"
                     disabled={busy === `mod-${mod.project_id}`}
                   >
                     {busy === `mod-${mod.project_id}` ? <Loader2 className="spin" size={18} /> : <Download size={18} />}
@@ -1574,6 +1780,70 @@ function App() {
           </section>
         )}
       </main>
+
+      {modVersionDialog && (
+        <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="选择资源版本">
+          <div className="resource-modal">
+            <div className="modal-heading">
+              <div>
+                <p className="eyebrow">Modrinth</p>
+                <h2>{modVersionDialog.project.title}</h2>
+              </div>
+              <button className="icon-button" onClick={() => setModVersionDialog(null)} title="关闭">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="resource-version-body">
+              <label className="input-label">
+                {modProjectLabel(modVersionDialog.projectType)}版本
+                <select
+                  value={modVersionDialog.selectedVersionId}
+                  onChange={(event) =>
+                    setModVersionDialog((current) =>
+                      current ? { ...current, selectedVersionId: event.target.value } : current
+                    )
+                  }
+                >
+                  {modVersionDialog.versions.map((version) => (
+                    <option key={version.id} value={version.id}>
+                      {version.name || version.version_number}
+                      {version.game_versions?.length ? ` · ${version.game_versions.slice(0, 3).join(", ")}` : ""}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <div className="resource-version-info">
+                <span>目标游戏版本 {targetModGameVersion}</span>
+                <span>{modrinthVersionMeta(selectedModrinthVersion)}</span>
+                <span>
+                  默认下载到 <code>{modVersionDialog.defaultTarget}</code>
+                </span>
+              </div>
+            </div>
+
+            <div className="action-row modal-actions">
+              <button
+                className="primary-action"
+                onClick={() => installSelectedModrinthVersion(true)}
+                disabled={modVersionInstallBusy}
+              >
+                {modVersionInstallBusy ? <Loader2 className="spin" size={18} /> : <FolderOpen size={18} />}
+                <span>选择文件夹并下载</span>
+              </button>
+              <button
+                className="secondary-action"
+                onClick={() => installSelectedModrinthVersion(false)}
+                disabled={modVersionInstallBusy}
+              >
+                <Download size={18} />
+                <span>下载到默认目录</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {launchLogOpen && (
         <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="启动日志">
