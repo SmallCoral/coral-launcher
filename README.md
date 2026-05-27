@@ -2,7 +2,7 @@
 
 <br/>
 <p align="center">
-  <img src="logo.png" alt="Coral Launcher" width="128" />
+  <img src="logo.svg" alt="Coral Launcher" width="128" />
 </p>
 <p align="center">
   <img alt="Tauri" src="https://img.shields.io/badge/Tauri-2-FFC131?style=flat&logo=tauri&logoColor=white" />
