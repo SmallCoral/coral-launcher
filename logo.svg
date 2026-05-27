@@ -1,0 +1,937 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg id="_图层_1" data-name="图层 1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 393 393">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #fa7f50;
+        fill-rule: evenodd;
+      }
+
+      .cls-2 {
+        clip-path: url(#clippath-21);
+      }
+
+      .cls-3 {
+        mask: url(#mask-15);
+      }
+
+      .cls-4 {
+        clip-path: url(#clippath-6);
+      }
+
+      .cls-5 {
+        clip-path: url(#clippath-7);
+      }
+
+      .cls-6 {
+        clip-path: url(#clippath-17);
+      }
+
+      .cls-7 {
+        mask: url(#mask-5);
+      }
+
+      .cls-8 {
+        mask: url(#mask-13);
+      }
+
+      .cls-9 {
+        clip-path: url(#clippath-15);
+      }
+
+      .cls-10 {
+        fill: url(#_未命名的渐变_27);
+      }
+
+      .cls-11 {
+        fill: url(#_未命名的渐变_34-2);
+      }
+
+      .cls-12 {
+        clip-path: url(#clippath-18);
+      }
+
+      .cls-13 {
+        clip-path: url(#clippath-4);
+      }
+
+      .cls-14 {
+        clip-path: url(#clippath-22);
+      }
+
+      .cls-15 {
+        mask: url(#mask-1);
+      }
+
+      .cls-16 {
+        fill: url(#_未命名的渐变_8);
+      }
+
+      .cls-17 {
+        clip-path: url(#clippath-23);
+      }
+
+      .cls-18 {
+        fill: url(#_未命名的渐变_5);
+      }
+
+      .cls-19 {
+        mask: url(#mask-10);
+      }
+
+      .cls-20 {
+        mask: url(#mask-6);
+      }
+
+      .cls-21 {
+        fill: url(#_未命名的渐变_43);
+      }
+
+      .cls-22 {
+        clip-path: url(#clippath-9);
+      }
+
+      .cls-23 {
+        mask: url(#mask-7);
+      }
+
+      .cls-24 {
+        clip-path: url(#clippath-10);
+      }
+
+      .cls-25 {
+        fill: url(#_未命名的渐变_38);
+      }
+
+      .cls-26 {
+        mask: url(#mask-17);
+      }
+
+      .cls-27 {
+        mask: url(#mask);
+      }
+
+      .cls-28 {
+        clip-path: url(#clippath-25);
+      }
+
+      .cls-29 {
+        clip-path: url(#clippath-27);
+      }
+
+      .cls-30 {
+        fill: #ee8246;
+      }
+
+      .cls-31 {
+        fill: url(#_未命名的渐变_11);
+      }
+
+      .cls-32 {
+        fill: url(#_未命名的渐变_36);
+      }
+
+      .cls-33 {
+        fill: #e58c47;
+      }
+
+      .cls-34 {
+        clip-path: url(#clippath-11);
+      }
+
+      .cls-35 {
+        fill: url(#_未命名的渐变_37);
+      }
+
+      .cls-36 {
+        fill: none;
+      }
+
+      .cls-37 {
+        mask: url(#mask-8);
+      }
+
+      .cls-38 {
+        clip-path: url(#clippath-28);
+      }
+
+      .cls-39 {
+        mask: url(#mask-2);
+      }
+
+      .cls-40 {
+        fill: url(#_未命名的渐变_51-2);
+      }
+
+      .cls-41 {
+        fill: #e98847;
+      }
+
+      .cls-42 {
+        mask: url(#mask-9);
+      }
+
+      .cls-43 {
+        clip-path: url(#clippath-1);
+      }
+
+      .cls-44 {
+        fill: #ee7546;
+      }
+
+      .cls-45 {
+        fill: url(#_未命名的渐变_9);
+      }
+
+      .cls-46 {
+        fill: url(#_未命名的渐变_34);
+      }
+
+      .cls-47 {
+        fill: url(#_未命名的渐变_15);
+      }
+
+      .cls-48 {
+        fill: url(#_未命名的渐变_31-2);
+      }
+
+      .cls-49 {
+        fill: url(#_未命名的渐变_44);
+      }
+
+      .cls-50 {
+        fill: url(#_未命名的渐变_41);
+      }
+
+      .cls-51 {
+        clip-path: url(#clippath-5);
+      }
+
+      .cls-52 {
+        clip-path: url(#clippath-20);
+      }
+
+      .cls-53 {
+        fill: url(#_未命名的渐变_6);
+      }
+
+      .cls-54 {
+        clip-path: url(#clippath-8);
+      }
+
+      .cls-55 {
+        fill: url(#_未命名的渐变_35);
+      }
+
+      .cls-56 {
+        fill: url(#_未命名的渐变_7);
+      }
+
+      .cls-57 {
+        clip-path: url(#clippath-3);
+      }
+
+      .cls-58 {
+        fill: #e8844b;
+      }
+
+      .cls-59 {
+        clip-path: url(#clippath-26);
+      }
+
+      .cls-60 {
+        fill: url(#_未命名的渐变_40);
+      }
+
+      .cls-61 {
+        fill: url(#_未命名的渐变_39);
+      }
+
+      .cls-62 {
+        clip-path: url(#clippath-12);
+      }
+
+      .cls-63 {
+        fill: url(#_未命名的渐变_35-2);
+      }
+
+      .cls-64 {
+        fill: url(#_未命名的渐变_3);
+      }
+
+      .cls-65 {
+        clip-path: url(#clippath-14);
+      }
+
+      .cls-66 {
+        fill: url(#_未命名的渐变_49);
+      }
+
+      .cls-67 {
+        mask: url(#mask-16);
+      }
+
+      .cls-68 {
+        fill: url(#_未命名的渐变_31);
+      }
+
+      .cls-69 {
+        fill: url(#_未命名的渐变_48);
+      }
+
+      .cls-70 {
+        clip-path: url(#clippath-30);
+      }
+
+      .cls-71 {
+        fill: url(#_未命名的渐变_30-2);
+      }
+
+      .cls-72 {
+        fill: url(#_未命名的渐变_13);
+      }
+
+      .cls-73 {
+        clip-path: url(#clippath-19);
+      }
+
+      .cls-74 {
+        fill: url(#_未命名的渐变_23);
+      }
+
+      .cls-75 {
+        fill: url(#_未命名的渐变_12);
+      }
+
+      .cls-76 {
+        fill: url(#_未命名的渐变_50);
+      }
+
+      .cls-77 {
+        fill: url(#_未命名的渐变_44-2);
+      }
+
+      .cls-78 {
+        fill: url(#_未命名的渐变_18-2);
+      }
+
+      .cls-79 {
+        fill: url(#_未命名的渐变_30);
+      }
+
+      .cls-80 {
+        mask: url(#mask-11);
+      }
+
+      .cls-81 {
+        mask: url(#mask-12);
+      }
+
+      .cls-82 {
+        fill: #f4b35c;
+      }
+
+      .cls-83 {
+        fill: url(#_未命名的渐变_16);
+      }
+
+      .cls-84 {
+        clip-path: url(#clippath-16);
+      }
+
+      .cls-85 {
+        clip-path: url(#clippath-2);
+      }
+
+      .cls-86 {
+        fill: url(#_未命名的渐变_22);
+      }
+
+      .cls-87 {
+        mask: url(#mask-4);
+      }
+
+      .cls-88 {
+        clip-path: url(#clippath-29);
+      }
+
+      .cls-89 {
+        fill: url(#_未命名的渐变_4);
+      }
+
+      .cls-90 {
+        fill: url(#_未命名的渐变_51-3);
+      }
+
+      .cls-91 {
+        fill: url(#_未命名的渐变_45);
+      }
+
+      .cls-92 {
+        fill: url(#_未命名的渐变_51);
+      }
+
+      .cls-93 {
+        fill: url(#_未命名的渐变_14);
+      }
+
+      .cls-94 {
+        clip-path: url(#clippath-13);
+      }
+
+      .cls-95 {
+        fill: url(#_未命名的渐变_18);
+      }
+
+      .cls-96 {
+        fill: url(#_未命名的渐变_46);
+      }
+
+      .cls-97 {
+        mask: url(#mask-14);
+      }
+
+      .cls-98 {
+        fill: #e68245;
+      }
+
+      .cls-99 {
+        fill: url(#_未命名的渐变_26);
+      }
+
+      .cls-100 {
+        clip-path: url(#clippath-24);
+      }
+
+      .cls-101 {
+        clip-path: url(#clippath);
+      }
+
+      .cls-102 {
+        fill: url(#_未命名的渐变_47);
+      }
+
+      .cls-103 {
+        fill: url(#_未命名的渐变_10);
+      }
+
+      .cls-104 {
+        mask: url(#mask-3);
+      }
+
+      .cls-105 {
+        fill: url(#_未命名的渐变_2);
+      }
+    </style>
+    <clipPath id="clippath">
+      <rect class="cls-36" x="0" width="393" height="393"/>
+    </clipPath>
+    <clipPath id="clippath-1">
+      <rect class="cls-36" x="0" y="1" width="393" height="393"/>
+    </clipPath>
+    <clipPath id="clippath-2">
+      <rect class="cls-36" x="0" width="393" height="393"/>
+    </clipPath>
+    <clipPath id="clippath-3">
+      <path class="cls-36" d="M270,37v78.14c0,3.59-4.15,5.61-6.93,3.36l-3.56-2.96c-6.75-5.47-16.65-4.36-22.08,2.5-5.44,6.81-4.35,16.79,2.45,22.26l24.87,20.15c3.32,2.69,5.24,6.72,5.24,10.99v59.17c0,6.51-2.94,12.66-8.01,16.75l-31.09,25.08c-6.26,5.05-9.9,12.66-9.9,20.7v75.88h25v-67.64c0-3.63,1.65-7.02,4.43-9.3l36.56-29.49c5.07-4.09,8.01-10.24,8.01-16.75v-18.15s7.74-8.39,11.13-11.1l35.97-28.79c4.27-3.41,14.9-14.04,14.9-14.04v-46.14s-15.2-15.9-23.98-15.9-13.02,15.9-13.02,15.9v35.6s-4.22,4.99-6.22,6.58c-5.54,4.42-6.78-6.58-6.78-6.58V40.28c0-8.12-5.94-15.25-14.01-16.16-9.56-1.08-17.68,6.38-17.68,15.74"/>
+    </clipPath>
+    <linearGradient id="_未命名的渐变_16" data-name="未命名的渐变 16" x1="-17.75" y1="-326.2" x2="-5.43" y2="-326.2" gradientTransform="translate(-8188.61 486) rotate(90) scale(25.97)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#da8930"/>
+      <stop offset=".32" stop-color="#da8930"/>
+      <stop offset=".55" stop-color="#df5a25"/>
+      <stop offset="1" stop-color="#df5a25"/>
+    </linearGradient>
+    <clipPath id="clippath-4">
+      <path class="cls-36" d="M333.73,254.7c0,5.17,4.2,9.38,9.39,9.38s9.38-4.2,9.38-9.38-4.2-9.38-9.38-9.38-9.39,4.2-9.39,9.38"/>
+    </clipPath>
+    <radialGradient id="_未命名的渐变_2" data-name="未命名的渐变 2" cx="274.31" cy="-713.79" fx="274.31" fy="-713.79" r="12.29" gradientTransform="translate(716.5 -702.04) rotate(-180) scale(1.34)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#86e6ff"/>
+      <stop offset=".14" stop-color="#86e6ff"/>
+      <stop offset=".46" stop-color="#64c9ff"/>
+      <stop offset=".96" stop-color="#4daaec"/>
+      <stop offset="1" stop-color="#4daaec"/>
+    </radialGradient>
+    <clipPath id="clippath-5">
+      <path class="cls-36" d="M302.36,289.74c0,10.56,8.56,19.11,19.11,19.11s19.13-8.56,19.13-19.11-8.57-19.13-19.13-19.13-19.11,8.57-19.11,19.13"/>
+    </clipPath>
+    <radialGradient id="_未命名的渐变_3" data-name="未命名的渐变 3" cx="130.27" cy="-509.14" fx="130.27" fy="-509.14" r="12.29" gradientTransform="translate(687.81 -1099.33) rotate(-180) scale(2.74)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#84e4ff"/>
+      <stop offset=".14" stop-color="#84e4ff"/>
+      <stop offset=".46" stop-color="#72cbff"/>
+      <stop offset=".96" stop-color="#4d77c9"/>
+      <stop offset="1" stop-color="#4d77c9"/>
+    </radialGradient>
+    <clipPath id="clippath-6">
+      <path class="cls-36" d="M350.52,283.41c0,3.58,2.93,6.5,6.51,6.5s6.5-2.93,6.5-6.5-2.91-6.51-6.5-6.51-6.51,2.91-6.51,6.51"/>
+    </clipPath>
+    <radialGradient id="_未命名的渐变_4" data-name="未命名的渐变 4" cx="432.64" cy="-912.43" fx="432.64" fy="-912.43" r="12.29" gradientTransform="translate(763.44 -564.99) rotate(-180) scale(.93)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#83dfff"/>
+      <stop offset=".14" stop-color="#83dfff"/>
+      <stop offset=".46" stop-color="#67cdff"/>
+      <stop offset=".82" stop-color="#53abee"/>
+      <stop offset="1" stop-color="#53abee"/>
+    </radialGradient>
+    <clipPath id="clippath-7">
+      <path class="cls-36" d="M34.38,225.26c0,12.73,10.33,23.06,23.06,23.06s23.06-10.33,23.06-23.06-10.33-23.06-23.06-23.06-23.06,10.33-23.06,23.06"/>
+    </clipPath>
+    <radialGradient id="_未命名的渐变_5" data-name="未命名的渐变 5" cx="119.06" cy="-400.99" fx="119.06" fy="-400.99" r="12.29" gradientTransform="translate(447.56 -1049.06) rotate(-180) scale(3.19)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#84e4ff"/>
+      <stop offset=".14" stop-color="#84e4ff"/>
+      <stop offset=".46" stop-color="#66bfff"/>
+      <stop offset=".96" stop-color="#4d77c9"/>
+      <stop offset="1" stop-color="#4d77c9"/>
+    </radialGradient>
+    <clipPath id="clippath-8">
+      <path class="cls-36" d="M34.38,225.26c0,12.73,10.33,23.06,23.06,23.06s23.06-10.33,23.06-23.06-10.33-23.06-23.06-23.06-23.06,10.33-23.06,23.06"/>
+    </clipPath>
+    <radialGradient id="_未命名的渐变_7" data-name="未命名的渐变 7" cx="49.5" cy="-327.9" fx="49.5" fy="-327.9" r="12.29" gradientTransform="translate(-2085.71 -121.36) rotate(90) scale(6.54)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#000"/>
+      <stop offset=".4" stop-color="#000"/>
+      <stop offset=".88" stop-color="#fff"/>
+      <stop offset="1" stop-color="#fff"/>
+    </radialGradient>
+    <mask id="mask" x="34.38" y="197" width="51.62" height="51.32" maskUnits="userSpaceOnUse">
+      <rect class="cls-56" x="34.38" y="202.2" width="46.12" height="46.12"/>
+    </mask>
+    <radialGradient id="_未命名的渐变_6" data-name="未命名的渐变 6" cx="48.71" cy="-328.53" fx="48.71" fy="-328.53" r="13.06" gradientTransform="translate(-2085.71 -121.36) rotate(90) scale(6.54)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#4579cc"/>
+      <stop offset=".4" stop-color="#4579cc"/>
+      <stop offset=".88" stop-color="#3c7ed4"/>
+      <stop offset="1" stop-color="#3c7ed4"/>
+    </radialGradient>
+    <clipPath id="clippath-9">
+      <path class="cls-36" d="M60.76,272.92c0,5.19,4.19,9.38,9.38,9.38s9.38-4.19,9.38-9.38-4.2-9.39-9.38-9.39-9.38,4.2-9.38,9.39"/>
+    </clipPath>
+    <radialGradient id="_未命名的渐变_8" data-name="未命名的渐变 8" cx="401.68" cy="-502.89" fx="401.68" fy="-502.89" r="12.29" gradientTransform="translate(586.66 -365.62) rotate(-180) scale(1.28)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#78c3f2"/>
+      <stop offset=".25" stop-color="#78c3f2"/>
+      <stop offset=".53" stop-color="#5db3ed"/>
+      <stop offset="1" stop-color="#508ccf"/>
+    </radialGradient>
+    <clipPath id="clippath-10">
+      <path class="cls-36" d="M19.36,284.78c0,7.97,6.45,14.43,14.42,14.43s14.44-6.47,14.44-14.43-6.47-14.42-14.44-14.42-14.42,6.45-14.42,14.42"/>
+    </clipPath>
+    <radialGradient id="_未命名的渐变_9" data-name="未命名的渐变 9" cx="259.32" cy="-438.41" fx="259.32" fy="-438.41" r="12.29" gradientTransform="translate(538.64 -552.98) rotate(-180) scale(1.92)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#7ad5ff"/>
+      <stop offset=".25" stop-color="#7ad5ff"/>
+      <stop offset=".58" stop-color="#62bdfb"/>
+      <stop offset="1" stop-color="#4a88db"/>
+    </radialGradient>
+    <clipPath id="clippath-11">
+      <rect class="cls-36" x="0" width="393" height="393"/>
+    </clipPath>
+    <clipPath id="clippath-12">
+      <path class="cls-36" d="M221,185v24.14s-2.34,6.35-5.1,8.09c-6.4,4.04-6.9-8.09-6.9-8.09v-4.24s-15.02-15.54-23.64-15.54-15.59,6.93-13.36,15.54v164.1h25v-77.2c0-14.75,7.41-28.51,19.73-36.63l14.72-9.7c9.08-5.99,14.55-16.14,14.55-27.01v-38.19c0-8.59-6.93-15.54-15.54-15.54s-15.52,6.94-15.52,15.54"/>
+    </clipPath>
+    <linearGradient id="_未命名的渐变_10" data-name="未命名的渐变 10" x1="3.52" y1="-331.12" x2="15.64" y2="-331.12" gradientTransform="translate(-4498.04 121.93) rotate(90) scale(14.23)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#d27b25"/>
+      <stop offset=".1" stop-color="#d27b25"/>
+      <stop offset=".82" stop-color="#df4909"/>
+      <stop offset="1" stop-color="#df4909"/>
+    </linearGradient>
+    <clipPath id="clippath-13">
+      <rect class="cls-36" x="0" width="393" height="393"/>
+    </clipPath>
+    <clipPath id="clippath-14">
+      <path class="cls-36" d="M74,37v52.01s-1.3,8.2-5.84,8.2-6.16-8.2-6.16-8.2v-5.43s-9.46-16.42-18.51-16.42-18.49,16.42-18.49,16.42v37.33c0,7.78,6.31,14.09,14.09,14.09h30.73c3.64,0,6.5,2.98,6.31,6.62-.63,11.88,5.49,23.16,15.89,29.57l23.53,14.48c4.63,2.85,7.46,7.9,7.46,13.34v36.26c0,2.82-3.42,4.42-5.74,2.68l-2.36-1.75c-7.36-5.42-17.97-4.14-23.65,2.86-5.69,7.01-4.36,17.11,3,22.53l25.86,19c1.81,1.33,2.88,3.45,2.88,5.7v82.71h25v-173.99c0-4.99,2.62-9.61,6.9-12.18l26.84-16.08c9.47-5.67,15.26-15.89,15.26-26.93v-25.58s-4.12-16.42-13.17-16.42-23.83,16.37-23.83,16.37v9.18s2.38,18.98-5.86,24.32l-.25.16c-9.43,6.09-21.52,6.09-30.96,0l-.36-.23c-8.33-5.39-11.58-24.37-11.58-24.37V41.08c0-8.22-6.66-15.94-14.85-16.68-9.7-.87-17.87,6.76-17.87,16.29"/>
+    </clipPath>
+    <linearGradient id="_未命名的渐变_11" data-name="未命名的渐变 11" x1="-16.9" y1="-320.44" x2="-4.61" y2="-320.44" gradientTransform="translate(-7741.56 439.2) rotate(90) scale(24.51)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#d7882c"/>
+      <stop offset=".43" stop-color="#d7882c"/>
+      <stop offset=".73" stop-color="#df5a25"/>
+      <stop offset="1" stop-color="#df5a25"/>
+    </linearGradient>
+    <clipPath id="clippath-15">
+      <path class="cls-36" d="M74,37v52.01s-1.3,8.2-5.84,8.2-6.16-8.2-6.16-8.2v-5.43s-9.46-16.42-18.51-16.42-18.49,16.42-18.49,16.42v37.33c0,7.78,6.31,14.09,14.09,14.09h30.73c3.64,0,6.5,2.98,6.31,6.62-.63,11.88,5.49,23.16,15.89,29.57l23.53,14.48c4.63,2.85,7.46,7.9,7.46,13.34v36.26c0,2.82-3.42,4.42-5.74,2.68l-2.36-1.75c-7.36-5.42-17.97-4.14-23.65,2.86-5.69,7.01-4.36,17.11,3,22.53l25.86,19c1.81,1.33,2.88,3.45,2.88,5.7v82.71h25v-173.99c0-4.99,2.62-9.61,6.9-12.18l26.84-16.08c9.47-5.67,15.26-15.89,15.26-26.93v-25.58s-4.12-16.42-13.17-16.42-23.83,16.37-23.83,16.37v9.18s2.38,18.98-5.86,24.32l-.25.16c-9.43,6.09-21.52,6.09-30.96,0l-.36-.23c-8.33-5.39-11.58-24.37-11.58-24.37V41.08c0-8.22-6.66-15.94-14.85-16.68-9.7-.87-17.87,6.76-17.87,16.29"/>
+    </clipPath>
+    <radialGradient id="_未命名的渐变_13" data-name="未命名的渐变 13" cx="66.04" cy="-359.13" fx="66.04" fy="-359.13" r="12.29" gradientTransform="translate(-670.84 -212.41) rotate(90) scale(4.06 2.05)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fff"/>
+      <stop offset=".66" stop-color="#fff"/>
+      <stop offset="1" stop-color="#000"/>
+    </radialGradient>
+    <mask id="mask-1" x="25" y="24.34" width="174.91" height="344.66" maskUnits="userSpaceOnUse">
+      <rect class="cls-72" x="26.65" y="24.34" width="173.25" height="344.01"/>
+    </mask>
+    <radialGradient id="_未命名的渐变_12" data-name="未命名的渐变 12" cx="66.21" cy="-358.2" fx="66.21" fy="-358.2" r="12.29" gradientTransform="translate(-670.84 -212.41) rotate(90) scale(4.06 2.05)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ca7924"/>
+      <stop offset=".66" stop-color="#ca7924"/>
+      <stop offset="1" stop-color="#c3762e"/>
+    </radialGradient>
+    <clipPath id="clippath-16">
+      <path class="cls-36" d="M74,37v52.01s-1.3,8.2-5.84,8.2-6.16-8.2-6.16-8.2v-5.43s-9.46-16.42-18.51-16.42-18.49,16.42-18.49,16.42v37.33c0,7.78,6.31,14.09,14.09,14.09h30.73c3.64,0,6.5,2.98,6.31,6.62-.63,11.88,5.49,23.16,15.89,29.57l23.53,14.48c4.63,2.85,7.46,7.9,7.46,13.34v36.26c0,2.82-3.42,4.42-5.74,2.68l-2.36-1.75c-7.36-5.42-17.97-4.14-23.65,2.86-5.69,7.01-4.36,17.11,3,22.53l25.86,19c1.81,1.33,2.88,3.45,2.88,5.7v82.71h25v-173.99c0-4.99,2.62-9.61,6.9-12.18l26.84-16.08c9.47-5.67,15.26-15.89,15.26-26.93v-25.58s-4.12-16.42-13.17-16.42-23.83,16.37-23.83,16.37v9.18s2.38,18.98-5.86,24.32l-.25.16c-9.43,6.09-21.52,6.09-30.96,0l-.36-.23c-8.33-5.39-11.58-24.37-11.58-24.37V41.08c0-8.22-6.66-15.94-14.85-16.68-9.7-.87-17.87,6.76-17.87,16.29"/>
+    </clipPath>
+    <radialGradient id="_未命名的渐变_15" data-name="未命名的渐变 15" cx="68.2" cy="-346.14" fx="68.2" fy="-346.14" r="12.29" gradientTransform="translate(-557.71 -203.97) rotate(90) scale(4.25 1.68)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fff"/>
+      <stop offset=".52" stop-color="#fff"/>
+      <stop offset="1" stop-color="#000"/>
+    </radialGradient>
+    <mask id="mask-2" x="25" y="24.34" width="174.91" height="344.66" maskUnits="userSpaceOnUse">
+      <rect class="cls-47" x="26.65" y="24.34" width="173.25" height="344.01"/>
+    </mask>
+    <radialGradient id="_未命名的渐变_14" data-name="未命名的渐变 14" cx="68.35" cy="-345.17" fx="68.35" fy="-345.17" r="12.29" gradientTransform="translate(-557.71 -203.97) rotate(90) scale(4.25 1.68)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ca7924"/>
+      <stop offset=".52" stop-color="#ca7924"/>
+      <stop offset="1" stop-color="#c3762e"/>
+    </radialGradient>
+    <clipPath id="clippath-17">
+      <path class="cls-36" d="M74,37v52.01s-1.3,8.2-5.84,8.2-6.16-8.2-6.16-8.2v-5.43s-9.46-16.42-18.51-16.42-18.49,16.42-18.49,16.42v37.33c0,7.78,6.31,14.09,14.09,14.09h30.73c3.64,0,6.5,2.98,6.31,6.62-.63,11.88,5.49,23.16,15.89,29.57l23.53,14.48c4.63,2.85,7.46,7.9,7.46,13.34v36.26c0,2.82-3.42,4.42-5.74,2.68l-2.36-1.75c-7.36-5.42-17.97-4.14-23.65,2.86-5.69,7.01-4.36,17.11,3,22.53l25.86,19c1.81,1.33,2.88,3.45,2.88,5.7v82.71h25v-173.99c0-4.99,2.62-9.61,6.9-12.18l26.84-16.08c9.47-5.67,15.26-15.89,15.26-26.93v-25.58s-4.12-16.42-13.17-16.42-23.83,16.37-23.83,16.37v9.18s2.38,18.98-5.86,24.32l-.25.16c-9.43,6.09-21.52,6.09-30.96,0l-.36-.23c-8.33-5.39-11.58-24.37-11.58-24.37V41.08c0-8.22-6.66-15.94-14.85-16.68-9.7-.87-17.87,6.76-17.87,16.29"/>
+    </clipPath>
+    <radialGradient id="_未命名的渐变_51" data-name="未命名的渐变 51" cx="-13.38" cy="-81.97" fx="-13.38" fy="-81.97" r="12.29" gradientTransform="translate(91.81 293.59) scale(3.75 2)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fff"/>
+      <stop offset="1" stop-color="#000"/>
+    </radialGradient>
+    <mask id="mask-3" x="25" y="24.34" width="174.91" height="344.66" maskUnits="userSpaceOnUse">
+      <rect class="cls-92" x="26.65" y="24.34" width="173.25" height="344.01"/>
+    </mask>
+    <radialGradient id="_未命名的渐变_18" data-name="未命名的渐变 18" cx="-13.85" cy="-81.64" fx="-13.85" fy="-81.64" r="12.28" gradientTransform="translate(91.81 293.59) scale(3.75 2)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#be6543"/>
+      <stop offset="1" stop-color="#c1683d"/>
+    </radialGradient>
+    <clipPath id="clippath-18">
+      <path class="cls-36" d="M74,37v52.01s-1.3,8.2-5.84,8.2-6.16-8.2-6.16-8.2v-5.43s-9.46-16.42-18.51-16.42-18.49,16.42-18.49,16.42v37.33c0,7.78,6.31,14.09,14.09,14.09h30.73c3.64,0,6.5,2.98,6.31,6.62-.63,11.88,5.49,23.16,15.89,29.57l23.53,14.48c4.63,2.85,7.46,7.9,7.46,13.34v36.26c0,2.82-3.42,4.42-5.74,2.68l-2.36-1.75c-7.36-5.42-17.97-4.14-23.65,2.86-5.69,7.01-4.36,17.11,3,22.53l25.86,19c1.81,1.33,2.88,3.45,2.88,5.7v82.71h25v-173.99c0-4.99,2.62-9.61,6.9-12.18l26.84-16.08c9.47-5.67,15.26-15.89,15.26-26.93v-25.58s-4.12-16.42-13.17-16.42-23.83,16.37-23.83,16.37v9.18s2.38,18.98-5.86,24.32l-.25.16c-9.43,6.09-21.52,6.09-30.96,0l-.36-.23c-8.33-5.39-11.58-24.37-11.58-24.37V41.08c0-8.22-6.66-15.94-14.85-16.68-9.7-.87-17.87,6.76-17.87,16.29"/>
+    </clipPath>
+    <radialGradient id="_未命名的渐变_51-2" data-name="未命名的渐变 51" cx="43.88" cy="-182.96" fx="43.88" fy="-182.96" r="12.29" gradientTransform="translate(-244.12 -103.04) rotate(90) scale(5.57 1.99)" xlink:href="#_未命名的渐变_51"/>
+    <mask id="mask-4" x="-145.27" y="-62.25" width="517.09" height="517.18" maskUnits="userSpaceOnUse">
+      <rect class="cls-40" x="-68.62" y="12.53" width="363.8" height="367.63" transform="translate(-104.7 134.14) rotate(-44.09)"/>
+    </mask>
+    <radialGradient id="_未命名的渐变_18-2" data-name="未命名的渐变 18" cx="43.88" cy="-182.96" fx="43.88" fy="-182.96" r="12.29" gradientTransform="translate(-244.12 -103.04) rotate(90) scale(5.57 1.99)" xlink:href="#_未命名的渐变_18"/>
+    <clipPath id="clippath-19">
+      <rect class="cls-36" x="0" width="393" height="393"/>
+    </clipPath>
+    <linearGradient id="_未命名的渐变_23" data-name="未命名的渐变 23" x1="-1.88" y1="-309.4" x2="10.41" y2="-309.4" gradientTransform="translate(-4665.66 129.47) rotate(90) scale(15.7)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fff"/>
+      <stop offset=".49" stop-color="#fff"/>
+      <stop offset="1" stop-color="#000"/>
+    </linearGradient>
+    <mask id="mask-5" x="-173.16" y="-168.51" width="729.22" height="729.22" maskUnits="userSpaceOnUse">
+      <rect class="cls-74" x="-76.33" y="-71.68" width="535.57" height="535.57" transform="translate(-71.5 118.87) rotate(-29.32)"/>
+    </mask>
+    <linearGradient id="_未命名的渐变_22" data-name="未命名的渐变 22" x1="-1.74" y1="-318.03" x2="10.55" y2="-318.03" gradientTransform="translate(-4076.06 2516.5) rotate(60.68) scale(15.7)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#f6b461"/>
+      <stop offset=".49" stop-color="#f6b461"/>
+      <stop offset="1" stop-color="#f6b461"/>
+    </linearGradient>
+    <linearGradient id="_未命名的渐变_27" data-name="未命名的渐变 27" x1=".29" y1="-313.57" x2="12.58" y2="-313.57" gradientTransform="translate(-3744.66 17.49) rotate(90) scale(12.55)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fff"/>
+      <stop offset=".3" stop-color="#fff"/>
+      <stop offset="1" stop-color="#000"/>
+    </linearGradient>
+    <mask id="mask-6" x="-149.66" y="-145.01" width="682.22" height="682.22" maskUnits="userSpaceOnUse">
+      <rect class="cls-10" x="-67.56" y="-62.91" width="518.02" height="518.02" transform="translate(-62.55 93.18) rotate(-23.63)"/>
+    </mask>
+    <linearGradient id="_未命名的渐变_26" data-name="未命名的渐变 26" x1=".27" y1="-310.3" x2="12.57" y2="-310.3" gradientTransform="translate(-3486.23 1610.13) rotate(66.37) scale(12.55)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#f6b461"/>
+      <stop offset=".3" stop-color="#f6b461"/>
+      <stop offset="1" stop-color="#f6b461"/>
+    </linearGradient>
+    <linearGradient id="_未命名的渐变_31" data-name="未命名的渐变 31" x1="78" y1="-304.09" x2="90.29" y2="-304.09" gradientTransform="translate(-935.03 -263.79) rotate(90) scale(3.7)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fff"/>
+      <stop offset=".4" stop-color="#fff"/>
+      <stop offset=".98" stop-color="#000"/>
+      <stop offset="1" stop-color="#000"/>
+    </linearGradient>
+    <mask id="mask-7" x="-161.09" y="-156.43" width="705.07" height="705.07" maskUnits="userSpaceOnUse">
+      <rect class="cls-68" x="-71.86" y="-67.21" width="526.62" height="526.62" transform="translate(-66.93 104.72) rotate(-26.21)"/>
+    </mask>
+    <linearGradient id="_未命名的渐变_30" data-name="未命名的渐变 30" x1="77.96" y1="-283.16" x2="90.26" y2="-283.16" gradientTransform="translate(-1022.32 281.04) rotate(63.79) scale(3.7)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#f6b461"/>
+      <stop offset=".4" stop-color="#f6b461"/>
+      <stop offset=".98" stop-color="#f6b461"/>
+      <stop offset="1" stop-color="#f6b461"/>
+    </linearGradient>
+    <linearGradient id="_未命名的渐变_31-2" data-name="未命名的渐变 31" x1="130.78" y1="-300.01" x2="143.07" y2="-300.01" gradientTransform="translate(-848.35 -257) rotate(90) scale(3.47)" xlink:href="#_未命名的渐变_31"/>
+    <mask id="mask-8" x="-163.5" y="-158.85" width="709.91" height="709.91" maskUnits="userSpaceOnUse">
+      <rect class="cls-48" x="-72.76" y="-68.11" width="528.43" height="528.43" transform="translate(-67.85 107.37) rotate(-26.8)"/>
+    </mask>
+    <linearGradient id="_未命名的渐变_30-2" data-name="未命名的渐变 30" x1="130.11" y1="-296.89" x2="142.4" y2="-296.89" gradientTransform="translate(-940.96 260.43) rotate(63.2) scale(3.47)" xlink:href="#_未命名的渐变_30"/>
+    <linearGradient id="_未命名的渐变_35" data-name="未命名的渐变 35" x1="-1.49" y1="-367.22" x2="10.8" y2="-367.22" gradientTransform="translate(259.67 -3008.01) rotate(-180) scale(8.73)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fff"/>
+      <stop offset="1" stop-color="#000"/>
+    </linearGradient>
+    <mask id="mask-9" x="-180.54" y="-175.88" width="743.98" height="743.98" maskUnits="userSpaceOnUse">
+      <rect class="cls-55" x="-79.03" y="-74.38" width="540.96" height="540.96" transform="translate(-75.82 256.75) rotate(-58.47)"/>
+    </mask>
+    <linearGradient id="_未命名的渐变_34" data-name="未命名的渐变 34" x1="-1.16" y1="-362.22" x2="11.13" y2="-362.22" gradientTransform="translate(-2504.04 -1537.48) rotate(121.53) scale(8.73)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#f6b461"/>
+      <stop offset="1" stop-color="#f6b461"/>
+    </linearGradient>
+    <clipPath id="clippath-20">
+      <path class="cls-36" d="M234,173v27.33c3.34,14-4.28,26.9-16.54,33.66l-14.83,8.17c-1.9,1.06-2.59,3.44-1.54,5.35,1.04,1.91,3.44,2.59,5.34,1.55l14.83-8.17c14.77-8.15,23.96-23.69,24.74-40.56v-22.21c-.78-2.18-2.55-3.95-4.72-3.95s-3.94,1.76-3.94,3.95"/>
+    </clipPath>
+    <linearGradient id="_未命名的渐变_35-2" data-name="未命名的渐变 35" x1="4.77" y1="-366" x2="17.06" y2="-366" gradientTransform="translate(300.09 -3111.48) rotate(-180) scale(9.08)" xlink:href="#_未命名的渐变_35"/>
+    <mask id="mask-10" x="166.33" y="153.96" width="111.14" height="116.38" maskUnits="userSpaceOnUse">
+      <rect class="cls-63" x="176.68" y="173.35" width="90.43" height="77.59" transform="translate(-69.99 307.25) rotate(-61.76)"/>
+    </mask>
+    <linearGradient id="_未命名的渐变_34-2" data-name="未命名的渐变 34" x1="4.77" y1="-366" x2="17.06" y2="-366" gradientTransform="translate(300.09 -3111.48) rotate(-180) scale(9.08)" xlink:href="#_未命名的渐变_34"/>
+    <clipPath id="clippath-21">
+      <path class="cls-36" d="M205.03,242.56l-6.59,7.75c-7.49,8.77-11.6,19.94-13.44,31.49v44.32c1.84,2.18,3.6,3.94,5.79,3.94s3.92-1.75,6.21-3.94v-44.32c-2.29-9.67,1.16-19.03,7.43-26.39l6.59-7.74c1.42-1.67,1.22-4.15-.44-5.56-.73-.62-1.64-.94-2.54-.94-1.12,0-2.22.47-3,1.38"/>
+    </clipPath>
+    <linearGradient id="_未命名的渐变_37" data-name="未命名的渐变 37" x1="-101.88" y1="-263.39" x2="-89.59" y2="-263.39" gradientTransform="translate(949.98 2353.83) scale(7.85)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fff"/>
+      <stop offset=".29" stop-color="#fff"/>
+      <stop offset="1" stop-color="#000"/>
+    </linearGradient>
+    <mask id="mask-11" x="157.73" y="231.88" width="83.28" height="107.47" maskUnits="userSpaceOnUse">
+      <rect class="cls-35" x="152.08" y="258.12" width="94.57" height="54.98" transform="translate(-136.26 378.74) rotate(-70.59)"/>
+    </mask>
+    <linearGradient id="_未命名的渐变_36" data-name="未命名的渐变 36" x1="-101.88" y1="-263.39" x2="-89.59" y2="-263.39" gradientTransform="translate(949.98 2353.83) scale(7.85)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#f7814f"/>
+      <stop offset=".29" stop-color="#f7814f"/>
+      <stop offset="1" stop-color="#f6b461"/>
+    </linearGradient>
+    <clipPath id="clippath-22">
+      <path class="cls-36" d="M115.59,320c-16.72,0-32.59,7.39-43.34,20.2l-16.55,19.7c-3.03,3.61-.47,9.11,4.24,9.11h264.24c4.68,0,7.25-5.45,4.27-9.06l-22.23-26.98c-6.92-8.36-18.49-11.84-29.4-7.87-4.36,1.59-8.16,4.45-11.1,8.04-5.27,6.44-12.58,10.86-20.91,10.86h-23.35c-5.13,0-10.06-2.04-13.69-5.67l-9.16-9.16c-5.87-5.87-13.83-9.17-22.14-9.17h-60.91Z"/>
+    </clipPath>
+    <linearGradient id="_未命名的渐变_38" data-name="未命名的渐变 38" x1="128.16" y1="-366.59" x2="140.4" y2="-366.59" gradientTransform="translate(-1276.71 -192.92) rotate(90) scale(4)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#77767e"/>
+      <stop offset=".69" stop-color="#77767e"/>
+      <stop offset="1" stop-color="#8a5fad"/>
+    </linearGradient>
+    <clipPath id="clippath-23">
+      <path class="cls-36" d="M115.59,320c-16.72,0-32.59,7.39-43.34,20.2l-16.55,19.7c-3.03,3.61-.47,9.11,4.24,9.11h264.24c4.68,0,7.25-5.45,4.27-9.06l-22.23-26.98c-6.92-8.36-18.49-11.84-29.4-7.87-4.36,1.59-8.16,4.45-11.1,8.04-5.27,6.44-12.58,10.86-20.91,10.86h-23.35c-5.13,0-10.06-2.04-13.69-5.67l-9.16-9.16c-5.87-5.87-13.83-9.17-22.14-9.17h-60.91Z"/>
+    </clipPath>
+    <linearGradient id="_未命名的渐变_40" data-name="未命名的渐变 40" x1="240.02" y1="-400.8" x2="252.31" y2="-400.8" gradientTransform="translate(-777.97 -242) rotate(90) scale(2.42)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#000"/>
+      <stop offset=".66" stop-color="#000"/>
+      <stop offset=".84" stop-color="#fff"/>
+      <stop offset="1" stop-color="#fff"/>
+    </linearGradient>
+    <mask id="mask-12" x="49" y="319.14" width="283" height="49.86" maskUnits="userSpaceOnUse">
+      <rect class="cls-60" x="52.51" y="319.14" width="278.1" height="49.2"/>
+    </mask>
+    <linearGradient id="_未命名的渐变_39" data-name="未命名的渐变 39" x1="240.34" y1="-400.36" x2="252.58" y2="-400.36" gradientTransform="translate(-777.97 -242) rotate(90) scale(2.42)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ac95c4"/>
+      <stop offset=".66" stop-color="#ac95c4"/>
+      <stop offset=".84" stop-color="#9b73be"/>
+      <stop offset="1" stop-color="#8d64b0"/>
+    </linearGradient>
+    <clipPath id="clippath-24">
+      <path class="cls-36" d="M115.59,320c-16.72,0-32.59,7.39-43.34,20.2l-16.55,19.7c-3.03,3.61-.47,9.11,4.24,9.11h264.24c4.68,0,7.25-5.45,4.27-9.06l-22.23-26.98c-6.92-8.36-18.49-11.84-29.4-7.87-4.36,1.59-8.16,4.45-11.1,8.04-5.27,6.44-12.58,10.86-20.91,10.86h-23.35c-5.13,0-10.06-2.04-13.69-5.67l-9.16-9.16c-5.87-5.87-13.83-9.17-22.14-9.17h-60.91Z"/>
+    </clipPath>
+    <radialGradient id="_未命名的渐变_44" data-name="未命名的渐变 44" cx="240.48" cy="-382.28" fx="240.48" fy="-382.28" r="12.29" gradientTransform="translate(697.25 -1920.55) rotate(-180) scale(2.09 5.94)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fff"/>
+      <stop offset=".37" stop-color="#fff"/>
+      <stop offset="1" stop-color="#000"/>
+    </radialGradient>
+    <mask id="mask-13" x="38.69" y="241.04" width="305.74" height="205.42" maskUnits="userSpaceOnUse">
+      <rect class="cls-49" x="127.19" y="203.6" width="128.75" height="280.29" transform="translate(-193.29 425.86) rotate(-72.91)"/>
+    </mask>
+    <radialGradient id="_未命名的渐变_41" data-name="未命名的渐变 41" cx="240.48" cy="-382.28" fx="240.48" fy="-382.28" r="12.29" gradientTransform="translate(697.25 -1920.55) rotate(-180) scale(2.09 5.94)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#beb5c5"/>
+      <stop offset=".37" stop-color="#beb5c5"/>
+      <stop offset="1" stop-color="#bdb4c5"/>
+    </radialGradient>
+    <clipPath id="clippath-25">
+      <path class="cls-36" d="M115.59,320c-16.72,0-32.59,7.39-43.34,20.2l-16.55,19.7c-3.03,3.61-.47,9.11,4.24,9.11h264.24c4.68,0,7.25-5.45,4.27-9.06l-22.23-26.98c-6.92-8.36-18.49-11.84-29.4-7.87-4.36,1.59-8.16,4.45-11.1,8.04-5.27,6.44-12.58,10.86-20.91,10.86h-23.35c-5.13,0-10.06-2.04-13.69-5.67l-9.16-9.16c-5.87-5.87-13.83-9.17-22.14-9.17h-60.91Z"/>
+    </clipPath>
+    <radialGradient id="_未命名的渐变_44-2" data-name="未命名的渐变 44" cx="215.11" cy="-486.93" fx="215.11" fy="-486.93" r="12.29" gradientTransform="translate(544.71 -1431.85) rotate(-180) scale(1.3 3.83)" xlink:href="#_未命名的渐变_44"/>
+    <mask id="mask-14" x="28.53" y="183.6" width="326.07" height="320.29" maskUnits="userSpaceOnUse">
+      <rect class="cls-77" x="85.67" y="219.67" width="211.79" height="248.16" transform="translate(-196.65 279.34) rotate(-51.45)"/>
+    </mask>
+    <radialGradient id="_未命名的渐变_43" data-name="未命名的渐变 43" cx="215.11" cy="-486.93" fx="215.11" fy="-486.93" r="12.29" gradientTransform="translate(544.71 -1431.85) rotate(-180) scale(1.3 3.83)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#cac4d0"/>
+      <stop offset=".37" stop-color="#cac4d0"/>
+      <stop offset="1" stop-color="#bdb4c5"/>
+    </radialGradient>
+    <clipPath id="clippath-26">
+      <path class="cls-36" d="M115.59,320c-16.72,0-32.59,7.39-43.34,20.2l-16.55,19.7c-3.03,3.61-.47,9.11,4.24,9.11h264.24c4.68,0,7.25-5.45,4.27-9.06l-22.23-26.98c-6.92-8.36-18.49-11.84-29.4-7.87-4.36,1.59-8.16,4.45-11.1,8.04-5.27,6.44-12.58,10.86-20.91,10.86h-23.35c-5.13,0-10.06-2.04-13.69-5.67l-9.16-9.16c-5.87-5.87-13.83-9.17-22.14-9.17h-60.91Z"/>
+    </clipPath>
+    <radialGradient id="_未命名的渐变_46" data-name="未命名的渐变 46" cx="232.88" cy="-339.5" fx="232.88" fy="-339.5" r="12.29" gradientTransform="translate(-1962.29 -240.06) rotate(90) scale(2.48 6.16)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fff"/>
+      <stop offset=".48" stop-color="#fff"/>
+      <stop offset=".82" stop-color="#000"/>
+      <stop offset="1" stop-color="#000"/>
+    </radialGradient>
+    <mask id="mask-15" x="49" y="319.14" width="283" height="49.86" maskUnits="userSpaceOnUse">
+      <rect class="cls-96" x="52.51" y="319.14" width="278.1" height="49.2"/>
+    </mask>
+    <radialGradient id="_未命名的渐变_45" data-name="未命名的渐变 45" cx="233.19" cy="-339.15" fx="233.19" fy="-339.15" r="12.38" gradientTransform="translate(-1962.29 -240.06) rotate(90) scale(2.48 6.16)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#a598a0"/>
+      <stop offset=".48" stop-color="#a598a0"/>
+      <stop offset=".82" stop-color="#a598a1"/>
+      <stop offset="1" stop-color="#a598a1"/>
+    </radialGradient>
+    <clipPath id="clippath-27">
+      <path class="cls-36" d="M115.59,320c-16.72,0-32.59,7.39-43.34,20.2l-16.55,19.7c-3.03,3.61-.47,9.11,4.24,9.11h264.24c4.68,0,7.25-5.45,4.27-9.06l-22.23-26.98c-6.92-8.36-18.49-11.84-29.4-7.87-4.36,1.59-8.16,4.45-11.1,8.04-5.27,6.44-12.58,10.86-20.91,10.86h-23.35c-5.13,0-10.06-2.04-13.69-5.67l-9.16-9.16c-5.87-5.87-13.83-9.17-22.14-9.17h-60.91Z"/>
+    </clipPath>
+    <linearGradient id="_未命名的渐变_48" data-name="未命名的渐变 48" x1="127.94" y1="-366.86" x2="140.24" y2="-366.86" gradientTransform="translate(-1276.71 -192.92) rotate(90) scale(4)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#000"/>
+      <stop offset=".91" stop-color="#000"/>
+      <stop offset="1" stop-color="#fff"/>
+    </linearGradient>
+    <mask id="mask-16" x="49" y="319.14" width="283" height="49.86" maskUnits="userSpaceOnUse">
+      <rect class="cls-69" x="52.51" y="319.14" width="278.1" height="49.2"/>
+    </mask>
+    <linearGradient id="_未命名的渐变_47" data-name="未命名的渐变 47" x1="128.16" y1="-366.59" x2="140.4" y2="-366.59" gradientTransform="translate(-1276.71 -192.92) rotate(90) scale(4)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#8b60af"/>
+      <stop offset=".91" stop-color="#8b60af"/>
+      <stop offset="1" stop-color="#8d64b0"/>
+    </linearGradient>
+    <clipPath id="clippath-28">
+      <path class="cls-36" d="M118.38,332c-17.6,0-26.93,6.79-38.22,16.39l-14.77,13.75c-3.19,2.73-.49,6.86,4.49,6.86h236.54c5.19,0,6.8-3.33,3.52-7.36-8.98-11.06-9.38-21.73-24.75-21.73s-11.02,17.09-36.97,17.09h-25.91l-57.71-25h-46.23Z"/>
+    </clipPath>
+    <linearGradient id="_未命名的渐变_49" data-name="未命名的渐变 49" x1="197.36" y1="-387.82" x2="210.37" y2="-387.82" gradientTransform="translate(-911.85 -229.22) rotate(90) scale(2.84)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ad9ac1"/>
+      <stop offset=".62" stop-color="#ad9ac1"/>
+      <stop offset="1" stop-color="#a27bc4"/>
+    </linearGradient>
+    <clipPath id="clippath-29">
+      <path class="cls-36" d="M118.38,332c-17.6,0-26.93,6.79-38.22,16.39l-14.77,13.75c-3.19,2.73-.49,6.86,4.49,6.86h236.54c5.19,0,6.8-3.33,3.52-7.36-8.98-11.06-9.38-21.73-24.75-21.73s-11.02,17.09-36.97,17.09h-25.91l-57.71-25h-46.23Z"/>
+    </clipPath>
+    <radialGradient id="_未命名的渐变_51-3" data-name="未命名的渐变 51" cx="132.69" cy="-391.33" fx="132.69" fy="-391.33" r="12.29" gradientTransform="translate(456.04 -3189.45) rotate(-180) scale(1.31 9.25)" xlink:href="#_未命名的渐变_51"/>
+    <mask id="mask-17" x="46.32" y="202.33" width="288.19" height="287.54" maskUnits="userSpaceOnUse">
+      <rect class="cls-90" x="85.59" y="247.23" width="209.66" height="197.75" transform="translate(-184.43 221.46) rotate(-42.79)"/>
+    </mask>
+    <radialGradient id="_未命名的渐变_50" data-name="未命名的渐变 50" cx="132.69" cy="-391.33" fx="132.69" fy="-391.33" r="12.29" gradientTransform="translate(456.04 -3189.45) rotate(-180) scale(1.31 9.25)" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#c8c2ce"/>
+      <stop offset="1" stop-color="#cac4d1"/>
+    </radialGradient>
+    <clipPath id="clippath-30">
+      <rect class="cls-36" x="0" width="393" height="393"/>
+    </clipPath>
+  </defs>
+  <g class="cls-101">
+    <g class="cls-43">
+      <g class="cls-85">
+        <path class="cls-98" d="M334.84,111.73c-8.75,0-15.84,7.09-15.84,15.84v36.04s-3.89,4.62-5.74,6.07c-5.11,4.08-6.26-6.07-6.26-6.07V39.89s-13.7-15.9-22.48-15.9-14.52,15.9-14.52,15.9v75.24c0,3.59-4.15,5.59-6.93,3.34l-3.56-2.95c-6.77-5.48-16.65-4.38-22.09,2.48-5.43,6.82-4.34,16.79,2.46,22.27l24.9,20.17c3.3,2.67,5.21,6.69,5.21,10.93v59.19c0,6.51-2.95,12.68-8.02,16.77l-31.08,25.08c-6.26,5.05-9.9,12.66-9.9,20.71v75.87h25v-67.65c0-3.63,1.63-7.01,4.41-9.29l36.54-29.47c5.08-4.1,8.04-10.28,8.04-16.81v-17.8c0-4.27,1.94-8.31,5.28-10.98l37.02-29.62c4.23-3.39,6.7-8.52,6.7-13.94v-45.86c0-8.75-7.09-15.84-15.84-15.84"/>
+      </g>
+      <g class="cls-57">
+        <rect class="cls-83" x="221" y="25" width="123" height="344"/>
+      </g>
+      <g class="cls-13">
+        <rect class="cls-105" x="330.97" y="242.56" width="24.28" height="24.29" transform="translate(-18.51 482.35) rotate(-68.78)"/>
+      </g>
+      <g class="cls-51">
+        <rect class="cls-64" x="296.73" y="264.99" width="49.49" height="49.49" transform="translate(-64.98 484.54) rotate(-68.78)"/>
+      </g>
+      <g class="cls-4">
+        <rect class="cls-89" x="348.6" y="274.98" width="16.85" height="16.85" transform="translate(-36.39 513.64) rotate(-68.78)"/>
+      </g>
+      <g class="cls-5">
+        <rect class="cls-18" x="27.88" y="195.7" width="59.13" height="59.13" transform="translate(-173.87 202.07) rotate(-69.97)"/>
+      </g>
+      <g class="cls-54">
+        <g class="cls-27">
+          <rect class="cls-53" x="37" y="197" width="49" height="49"/>
+        </g>
+      </g>
+      <g class="cls-22">
+        <rect class="cls-16" x="58.77" y="261.55" width="22.73" height="22.72" transform="translate(-211.63 275.31) rotate(-76.07)"/>
+      </g>
+      <g class="cls-24">
+        <rect class="cls-45" x="15.87" y="266.86" width="35.85" height="35.86" transform="translate(-248.89 236.46) rotate(-73.53)"/>
+      </g>
+      <g class="cls-34">
+        <path class="cls-98" d="M236.54,164.74c-8.59,0-15.54,6.93-15.54,15.54v28.87s-2.34,6.36-5.1,8.09c-6.4,4.04-6.9-8.09-6.9-8.09v-4.25s-15.02-15.52-23.64-15.52-15.59,6.93-13.36,15.52v164.11h25v-77.13c0-14.8,7.44-28.6,19.79-36.74l14.7-9.69c9.06-5.97,14.51-16.09,14.51-26.93v-38.24c0-8.6-6.94-15.54-15.54-15.54"/>
+      </g>
+      <g class="cls-62">
+        <rect class="cls-103" x="172" y="172" width="86" height="197"/>
+      </g>
+      <g class="cls-94">
+        <path class="cls-98" d="M172,111v11.53c0,10.08-4.97,19.5-13.29,25.19l-1.56,1.07c-9.19,6.29-21.27,6.41-30.59.31l-2.43-1.59c-8.19-5.37-13.13-14.5-13.13-24.3V40.72s-9.11-16.42-18.16-16.42-18.84,16.42-18.84,16.42v48.28s-1.3,8.2-5.84,8.2-6.16-8.2-6.16-8.2v-5.43s-9.46-16.42-18.51-16.42-18.49,16.42-18.49,16.42v37.35c0,7.78,6.31,14.08,14.08,14.08h30.75c3.63,0,6.49,2.97,6.3,6.6-.63,11.89,5.49,23.16,15.89,29.58l23.51,14.45c4.64,2.85,7.47,7.91,7.47,13.36v36.26c0,2.82-3.41,4.42-5.73,2.68l-2.36-1.75c-7.35-5.42-17.97-4.14-23.65,2.87-5.69,7-4.36,17.1,3,22.52l25.85,19.01c1.81,1.33,2.88,3.44,2.88,5.69v82.73h25v-173.98c0-5,2.63-9.64,6.92-12.21l26.8-16.06c9.48-5.68,15.28-15.91,15.28-26.96v-25.16c0-8.4-6.15-15.76-14.5-16.68-9.87-1.09-18.22,6.59-18.22,16.22"/>
+      </g>
+      <g class="cls-65">
+        <rect class="cls-31" x="25" y="25" width="172" height="344"/>
+      </g>
+      <g class="cls-9">
+        <g class="cls-15">
+          <rect class="cls-75" x="25" y="25" width="172" height="344"/>
+        </g>
+      </g>
+      <g class="cls-84">
+        <g class="cls-39">
+          <rect class="cls-93" x="25" y="25" width="172" height="344"/>
+        </g>
+      </g>
+      <g class="cls-6">
+        <g class="cls-104">
+          <rect class="cls-95" x="25" y="25" width="172" height="344"/>
+        </g>
+      </g>
+      <g class="cls-12">
+        <g class="cls-87">
+          <rect class="cls-78" x="-68.62" y="12.53" width="363.8" height="367.63" transform="translate(-104.7 134.14) rotate(-44.09)"/>
+        </g>
+      </g>
+      <g class="cls-73">
+        <path class="cls-1" d="M290.97,213.97c2.22,0,4.03,1.81,4.03,4.03v20.86c0,6.96-3.12,13.56-8.51,17.97l-34.92,28.62c-3.52,2.89-5.57,7.2-5.57,11.76v46.84s-2.17,3.94-4.35,3.94-7.65-3.94-7.65-3.94v-47.03c0-6.96,3.12-13.55,8.51-17.97l34.95-28.63c3.51-2.88,5.55-7.18,5.55-11.72v-20.69c0-2.22,1.81-4.03,4.03-4.03"/>
+        <g class="cls-7">
+          <path class="cls-86" d="M295,38.22v127.15c.26,4.61,3.38,15.75,13.83,15.75h0c-10.45,0-13.57-11.14-13.83-15.75V38.22h0Z"/>
+        </g>
+        <g class="cls-20">
+          <path class="cls-99" d="M98,38.22v89.5c0,8.46,11.52,32.66,34.58,32.66h0c-23.06,0-34.58-24.2-34.58-32.66V38.22h0Z"/>
+        </g>
+        <g class="cls-23">
+          <path class="cls-79" d="M49,84.71v6.94c0,6.5,5.37,15.52,18.44,15.52h0c-13.07,0-18.44-9.02-18.44-15.52v-6.94h0Z"/>
+        </g>
+        <g class="cls-37">
+          <path class="cls-71" d="M184,199.94v13.47c0,6.5,3.84,13.8,16.9,13.8h0c-13.07,0-16.9-7.3-16.9-13.8v-13.47h0Z"/>
+        </g>
+        <g class="cls-42">
+          <path class="cls-46" d="M184,111.22v20.36c0,22.29-35.72,41.1-35.72,41.1h0s35.72-18.82,35.72-41.1v-20.36h0Z"/>
+        </g>
+      </g>
+      <g class="cls-52">
+        <g class="cls-19">
+          <rect class="cls-11" x="176.68" y="173.35" width="90.43" height="77.59" transform="translate(-69.99 307.25) rotate(-61.76)"/>
+        </g>
+      </g>
+      <g class="cls-2">
+        <g class="cls-80">
+          <rect class="cls-32" x="152.08" y="258.12" width="94.57" height="54.98" transform="translate(-136.26 378.74) rotate(-70.59)"/>
+        </g>
+      </g>
+      <g class="cls-14">
+        <rect class="cls-25" x="49" y="320" width="283" height="49"/>
+      </g>
+      <g class="cls-17">
+        <g class="cls-81">
+          <rect class="cls-61" x="49" y="320" width="283" height="49"/>
+        </g>
+      </g>
+      <g class="cls-100">
+        <g class="cls-8">
+          <rect class="cls-50" x="127.19" y="203.6" width="128.75" height="280.29" transform="translate(-193.29 425.86) rotate(-72.91)"/>
+        </g>
+      </g>
+      <g class="cls-28">
+        <g class="cls-97">
+          <rect class="cls-21" x="85.67" y="219.67" width="211.79" height="248.16" transform="translate(-196.65 279.34) rotate(-51.45)"/>
+        </g>
+      </g>
+      <g class="cls-59">
+        <g class="cls-3">
+          <rect class="cls-91" x="49" y="320" width="283" height="49"/>
+        </g>
+      </g>
+      <g class="cls-29">
+        <g class="cls-67">
+          <rect class="cls-102" x="49" y="320" width="283" height="49"/>
+        </g>
+      </g>
+      <g class="cls-38">
+        <rect class="cls-66" x="62" y="332" width="258" height="37"/>
+      </g>
+      <g class="cls-88">
+        <g class="cls-26">
+          <rect class="cls-76" x="85.59" y="247.23" width="209.66" height="197.75" transform="translate(-184.43 221.46) rotate(-42.79)"/>
+        </g>
+      </g>
+      <g class="cls-70">
+        <path class="cls-82" d="M96.19,31.7c3.82,0,6.91,3.1,6.91,6.91s-3.09,6.92-6.91,6.92-6.91-3.1-6.91-6.92,3.09-6.91,6.91-6.91"/>
+        <path class="cls-82" d="M47.4,73.95c3.6,0,6.53,2.93,6.53,6.53s-2.93,6.53-6.53,6.53-6.53-2.91-6.53-6.53,2.93-6.53,6.53-6.53"/>
+        <path class="cls-82" d="M188.76,105.45c3.6,0,6.53,2.93,6.53,6.53s-2.93,6.53-6.53,6.53-6.53-2.91-6.53-6.53,2.93-6.53,6.53-6.53"/>
+        <path class="cls-82" d="M241.38,170.75c3.39,0,6.15,2.75,6.15,6.15s-2.75,6.15-6.15,6.15-6.15-2.75-6.15-6.15,2.75-6.15,6.15-6.15"/>
+        <path class="cls-82" d="M289.4,30.93c3.6,0,6.53,2.93,6.53,6.53s-2.93,6.53-6.53,6.53-6.53-2.91-6.53-6.53,2.93-6.53,6.53-6.53"/>
+        <path class="cls-82" d="M337.8,117.74c3.39,0,6.15,2.75,6.15,6.15s-2.75,6.15-6.15,6.15-6.15-2.75-6.15-6.15,2.75-6.15,6.15-6.15"/>
+        <path class="cls-82" d="M256.18,118.45c4.56,3.2,6.92,7.68,5.27,10.03-1.63,2.34-6.66,1.66-11.22-1.54-4.56-3.18-6.92-7.68-5.27-10.02,1.63-2.35,6.66-1.67,11.22,1.52"/>
+        <path class="cls-58" d="M111.75,238.29c4.56,3.2,6.92,7.68,5.27,10.03-1.63,2.34-6.66,1.66-11.22-1.54-4.56-3.18-6.92-7.68-5.27-10.02,1.63-2.35,6.66-1.67,11.22,1.52"/>
+        <path class="cls-82" d="M187.61,194.57c3.39,0,6.15,2.75,6.15,6.15s-2.75,6.15-6.15,6.15-6.15-2.75-6.15-6.15,2.75-6.15,6.15-6.15"/>
+        <path class="cls-41" d="M142.67,224.91c0-35.34-18.44-61.08-31.49-70.3,19.97,10.37,58.39,4.23,58.39,4.23-19.59,12.29-26.89,66.07-26.89,66.07"/>
+        <path class="cls-33" d="M184,283v-70.37c17.43,20.36,33.29,15.36,50.32,15.36-26.94,7.68-44.78,44.56-50.32,55.31"/>
+        <path class="cls-30" d="M283,234v-68.25c15.36,24.2,36.74,10.37,53.78,10.37-16.52,20.36-46.48,40.72-46.48,40.72-2.96,4.97-6.07,13.95-7.3,19.2"/>
+        <path class="cls-44" d="M134.17,246c-5.95,0-21.89-2.69-21.89-2.69l35.72,36.88v-34.18h-13.83Z"/>
+      </g>
+    </g>
+  </g>
+</svg>
